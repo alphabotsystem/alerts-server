@@ -18,4 +18,4 @@ COPY ./app ./app
 ENV GOOGLE_APPLICATION_CREDENTIALS="/run/secrets/google-cloud-auth/key"
 
 # Run
-ENTRYPOINT ["python", "app/alerts.sh"]
+ENTRYPOINT ["python", "app/alerts.py"]
