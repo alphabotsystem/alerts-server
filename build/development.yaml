@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alerts-server-development
+  labels:
+    app: alerts-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alerts-server
+  template:
+    metadata:
+      labels:
+        app: alerts-server
+    spec:
+      containers:
+      - name: alerts-server
+        image: alphabotsystem/alpha-alerts-server
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - name: alpha-service-keys
+            mountPath: /run/secrets/alpha-service
+            readOnly: true
+          - name: google-cloud-auth
+            mountPath: /run/secrets/google-cloud-auth
+            readOnly: true
+        ports:
+          - containerPort: 6906
+      volumes:
+        - name: alpha-service-keys
+          secret:
+            secretName: alpha-service-keys
+            items:
+              - key: credentials
+                path: key
+        - name: google-cloud-auth
+          secret:
+            secretName: google-cloud-auth
+            items:
+              - key: gcloud_credentials.json
+                path: key
