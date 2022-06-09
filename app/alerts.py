@@ -106,12 +106,13 @@ class AlertsServer(object):
 			currentPlatform = alert["request"].get("currentPlatform")
 			currentRequest = alert["request"].get(currentPlatform)
 			ticker = currentRequest.get("ticker")
+			exchangeName = f" ({ticker.get('exchange').get('name')})" if ticker.get("exchange") else ''
 			hashName = hash(dumps(ticker, option=OPT_SORT_KEYS))
 
 			if alert["timestamp"] < time() - 86400 * 30.5 * 3:
 				if environ["PRODUCTION_MODE"]:
-					database.document("discord/properties/messages/{}".format(str(uuid4()))).set({
-						"title": "Price alert for {} ({}) at {}{} expired.".format(ticker.get("name"), currentPlatform if not bool(ticker.get("exchange")) else ticker.get("exchange").get("name"), alert.get("levelText", alert["level"]), "" if ticker.get("quote") is None else " " + ticker.get("quote")),
+					database.document(f"discord/properties/messages/{str(uuid4())}").set({
+						"title": f"Price alert for {ticker.get('name')}{exchangeName} at {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')} expired.",
 						"subtitle": "Price Alerts",
 						"description": "Price alerts automatically cancel after 3 months. If you'd like to keep your alert, you'll have to schedule it again.",
 						"color": 6765239,
@@ -121,7 +122,7 @@ class AlertsServer(object):
 					reference.delete()
 
 				else:
-					print("{}: price alert for {} ({}) at {}{} expired".format(accountId, ticker.get("name"), currentPlatform if not bool(ticker.get("exchange")) else ticker.get("exchange").get("name"), alert.get("levelText", alert["level"]), "" if ticker.get("quote") is None else " " + ticker.get("quote")))
+					print(f"{accountId}: price alert for {ticker.get('name')}{exchangeName} at {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')} expired")
 
 			else:
 				if hashName in self.cache:
@@ -151,8 +152,8 @@ class AlertsServer(object):
 					if candle[0] < alert["timestamp"]: break
 					if (alert["placement"] == "below" and candle[3] is not None and candle[3] <= alert["level"]) or (alert["placement"] == "above" and candle[2] is not None and alert["level"] <= candle[2]):
 						if environ["PRODUCTION_MODE"]:
-							database.document("discord/properties/messages/{}".format(str(uuid4()))).set({
-								"title": "Price of {}{} hit {}{}.".format(ticker.get("name"), "" if not bool(ticker.get("exchange")) else " ({})".format(ticker.get("exchange").get("name")), alert.get("levelText", alert["level"]), "" if ticker.get("quote") is None else " " + ticker.get("quote")),
+							database.document(f"discord/properties/messages/{str(uuid4())}").set({
+								"title": f"Price of {ticker.get('name')}{exchangeName} hit {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')}.",
 								"description": alert.get("triggerMessage"),
 								"subtitle": "Price Alerts",
 								"color": 6765239,
@@ -162,7 +163,7 @@ class AlertsServer(object):
 							reference.delete()
 
 						else:
-							print("{}: price of {} ({}) hit {}{}".format(accountId, ticker.get("name"), payload.get("platform") if not bool(ticker.get("exchange")) else ticker.get("exchange").get("name"), alert.get("levelText", alert["level"]), "" if ticker.get("quote") is None else " " + ticker.get("quote")))
+							print(f"{accountId}: price of {ticker.get('name')}{exchangeName} hit {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')}")
 						break
 
 		except (KeyboardInterrupt, SystemExit): pass
