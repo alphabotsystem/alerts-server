@@ -157,8 +157,10 @@ class AlertsServer(object):
 								"description": alert.get("triggerMessage"),
 								"subtitle": "Price Alerts",
 								"color": 6765239,
-								"user": None if {"id": "public", "value": "public"} in currentRequest.get("preferences") else authorId,
-								"channel": alert["channel"]
+								"primaryUser": authorId if alert["channel"] is None else None,
+								"primaryChannel": alert["channel"],
+								"backupUser": authorId,
+								"backupChannel": alert["backupChannel"]
 							})
 							reference.delete()
 
