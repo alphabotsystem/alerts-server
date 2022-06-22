@@ -116,8 +116,8 @@ class AlertsServer(object):
 						"subtitle": "Price Alerts",
 						"description": "Price alerts automatically cancel after 3 months. If you'd like to keep your alert, you'll have to schedule it again.",
 						"color": 6765239,
-						"primaryUser": authorId,
-						"primaryChannel": alert["channel"],
+						"user": authorId,
+						"channel": alert["channel"],
 						"backupUser": authorId,
 						"backupChannel": alert["backupChannel"]
 					})
@@ -159,8 +159,8 @@ class AlertsServer(object):
 								"description": alert.get("triggerMessage"),
 								"subtitle": "Price Alerts",
 								"color": 6765239,
-								"primaryUser": authorId if alert["channel"] is None else None,
-								"primaryChannel": alert["channel"],
+								"user": authorId if alert["channel"] is None else None,
+								"channel": alert["channel"],
 								"backupUser": authorId,
 								"backupChannel": alert["backupChannel"]
 							})
