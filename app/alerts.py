@@ -116,8 +116,10 @@ class AlertsServer(object):
 						"subtitle": "Price Alerts",
 						"description": "Price alerts automatically cancel after 3 months. If you'd like to keep your alert, you'll have to schedule it again.",
 						"color": 6765239,
-						"user": authorId,
-						"channel": alert["channel"]
+						"primaryUser": authorId,
+						"primaryChannel": alert["channel"],
+						"backupUser": authorId,
+						"backupChannel": alert["backupChannel"]
 					})
 					reference.delete()
 
