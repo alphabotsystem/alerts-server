@@ -8,6 +8,8 @@ from uuid import uuid4
 from pytz import utc
 from traceback import format_exc
 
+import google.auth.transport.requests
+import google.oauth2.id_token
 from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
 
@@ -35,11 +37,6 @@ class AlertsServer(object):
 		self.logging = ErrorReportingClient(service="alerts")
 
 		self.url = "https://candle-server-yzrdox65bq-uc.a.run.app/" if environ['PRODUCTION_MODE'] else "http://candle-server:6900/"
-		self.headers = {
-			"authorization": environ["INTERNAL_SERVICES_KEY"],
-			"content-type": "application/json",
-			"accept": "application/json"
-		}
 
 	def exit_gracefully(self, signum, frame):
 		print("[Startup]: Alerts Server handler is exiting")
@@ -80,7 +77,14 @@ class AlertsServer(object):
 	# -------------------------
 
 	async def process_price_alerts(self):
-		async with aiohttp.ClientSession(headers=self.headers) as session:
+		auth_req = google.auth.transport.requests.Request()
+		token = google.oauth2.id_token.fetch_id_token(auth_req, "https://candle-server-yzrdox65bq-uc.a.run.app/")
+		headers = {
+			"Authorization": "Bearer " + token,
+			"content-type": "application/json",
+			"accept": "application/json"
+		}
+		async with aiohttp.ClientSession(headers=headers) as session:
 			tasks = []
 			try:
 				users = database.document("details/marketAlerts").collections()
