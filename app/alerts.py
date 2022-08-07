@@ -120,7 +120,7 @@ class AlertsServer(object):
 						"backupUser": authorId,
 						"backupChannel": alert.get("backupChannel")
 					})
-					reference.delete()
+					await reference.delete()
 
 				else:
 					print(f"{accountId}: price alert for {ticker.get('name')}{exchangeName} at {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')} expired")
@@ -154,7 +154,7 @@ class AlertsServer(object):
 								"backupUser": authorId,
 								"backupChannel": alert.get("backupChannel")
 							})
-							reference.delete()
+							await reference.delete()
 
 						else:
 							print(f"{accountId}: price of {ticker.get('name')}{exchangeName} hit {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')}")
