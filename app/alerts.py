@@ -2,18 +2,16 @@ from os import environ
 from signal import signal, SIGINT, SIGTERM
 from time import time, sleep
 from datetime import datetime
-from threading import Thread
-from concurrent.futures import ThreadPoolExecutor
+import aiohttp
+from asyncio import wait, run, create_task
 from uuid import uuid4
 from pytz import utc
 from traceback import format_exc
-from zmq import Context, Poller, REQ, LINGER, POLLIN
-from orjson import dumps, loads, OPT_SORT_KEYS
 
-from google.cloud.firestore import Client as FirestoreClient
+from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
 
-from DatabaseConnector import DatabaseConnectorSync as DatabaseConnector
+from DatabaseConnector import DatabaseConnector
 from helpers.utils import Utils
 
 
@@ -23,8 +21,6 @@ database = FirestoreClient()
 class AlertsServer(object):
 	accountProperties = DatabaseConnector(mode="account")
 	registeredAccounts = {}
-
-	zmqContext = Context.instance()
 
 
 	# -------------------------
@@ -38,7 +34,12 @@ class AlertsServer(object):
 
 		self.logging = ErrorReportingClient(service="alerts")
 
-		self.cache = {}
+		self.url = "https://candle-server-yzrdox65bq-uc.a.run.app/" if environ['PRODUCTION_MODE'] else "http://candle-server:6900/"
+		self.headers = {
+			"authorization": environ["INTERNAL_SERVICES_KEY"],
+			"content-type": "application/json",
+			"accept": "application/json"
+		}
 
 	def exit_gracefully(self, signum, frame):
 		print("[Startup]: Alerts Server handler is exiting")
@@ -49,7 +50,7 @@ class AlertsServer(object):
 	# Job queue
 	# -------------------------
 
-	def run(self):
+	async def run(self):
 		while self.isServiceAvailable:
 			try:
 				sleep(Utils.seconds_until_cycle())
@@ -57,17 +58,17 @@ class AlertsServer(object):
 				timeframes = Utils.get_accepted_timeframes(t)
 
 				if "1m" in timeframes:
-					self.update_accounts()
-					self.process_price_alerts()
+					await self.update_accounts()
+					await self.process_price_alerts()
 
 			except (KeyboardInterrupt, SystemExit): return
 			except Exception:
 				print(format_exc())
 				if environ["PRODUCTION_MODE"]: self.logging.report_exception()
 
-	def update_accounts(self):
+	async def update_accounts(self):
 		try:
-			self.registeredAccounts = self.accountProperties.keys()
+			self.registeredAccounts = await self.accountProperties.keys()
 		except (KeyboardInterrupt, SystemExit): pass
 		except Exception:
 			print(format_exc())
@@ -78,40 +79,34 @@ class AlertsServer(object):
 	# Price Alerts
 	# -------------------------
 
-	def process_price_alerts(self):
-		try:
-			self.cache = {}
-			users = database.document("details/marketAlerts").collections()
-			with ThreadPoolExecutor(max_workers=20) as pool:
-				for user in users:
+	async def process_price_alerts(self):
+		async with aiohttp.ClientSession(headers=self.headers) as session:
+			tasks = []
+			try:
+				users = database.document("details/marketAlerts").collections()
+				async for user in users:
 					accountId = user.id
+					if not environ["PRODUCTION_MODE"] and accountId != "ebOX1w1N2DgMtXVN978fnL0FKCP2": continue
 					authorId = accountId if accountId.isdigit() else self.registeredAccounts.get(accountId)
 					if authorId is None: continue
-					for alert in user.stream():
-						pool.submit(self.check_price_alert, authorId, accountId, alert.reference, alert.to_dict())
+					async for alert in user.stream():
+						tasks.append(create_task(self.check_price_alert(session, authorId, accountId, alert.reference, alert.to_dict())))
 
-		except (KeyboardInterrupt, SystemExit): pass
-		except Exception:
-			print(format_exc())
-			if environ["PRODUCTION_MODE"]: self.logging.report_exception()
+			except (KeyboardInterrupt, SystemExit): pass
+			except Exception:
+				print(format_exc())
+				if environ["PRODUCTION_MODE"]: self.logging.report_exception()
+			finally:
+				if len(tasks) > 0: await wait(tasks)
 
-	def check_price_alert(self, authorId, accountId, reference, alert):
-		socket = AlertsServer.zmqContext.socket(REQ)
-		socket.connect("tcp://candle-server:6900")
-		socket.setsockopt(LINGER, 3)
-		poller = Poller()
-		poller.register(socket, POLLIN)
-
+	async def check_price_alert(self, session, authorId, accountId, reference, alert):
 		try:
-			currentPlatform = alert["request"].get("currentPlatform")
-			currentRequest = alert["request"].get(currentPlatform)
-			ticker = currentRequest.get("ticker")
+			ticker = alert["request"].get("ticker")
 			exchangeName = f" ({ticker.get('exchange').get('name')})" if ticker.get("exchange") else ''
-			hashName = hash(dumps(ticker, option=OPT_SORT_KEYS))
 
 			if alert["timestamp"] < time() - 86400 * 30.5 * 3:
 				if environ["PRODUCTION_MODE"]:
-					database.document(f"discord/properties/messages/{str(uuid4())}").set({
+					await database.document(f"discord/properties/messages/{str(uuid4())}").set({
 						"title": f"Price alert for {ticker.get('name')}{exchangeName} at {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')} expired.",
 						"subtitle": "Price Alerts",
 						"description": "Price alerts automatically cancel after 3 months. If you'd like to keep your alert, you'll have to schedule it again.",
@@ -127,34 +122,25 @@ class AlertsServer(object):
 					print(f"{accountId}: price alert for {ticker.get('name')}{exchangeName} at {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')} expired")
 
 			else:
-				if hashName in self.cache:
-					payload = self.cache.get(hashName)
-				else:
-					alert["request"]["timestamp"] = time()
-					alert["request"]["authorId"] = authorId
-					socket.send_multipart([b"alerts", b"candle", dumps(alert["request"])])
-					responses = poller.poll(30 * 1000)
+				alert["request"]["timestamp"] = time()
+				alert["request"]["authorId"] = authorId
 
-					if len(responses) != 0:
-						[payload, responseText] = socket.recv_multipart()
-						payload = loads(payload)
-						responseText = responseText.decode()
+				payload, message = {}, ""
+				async with session.post(self.url + alert["currentPlatform"].lower(), json=alert["request"]) as response:
+					data = await response.json()
+					payload, message = data.get("response"), data.get("message")
 
-						if not bool(payload):
-							if responseText != "":
-								print("Alert request error:", responseText)
-								if environ["PRODUCTION_MODE"]: self.logging.report(responseText)
-							return
-
-						self.cache[hashName] = payload
-					else:
-						raise Exception("time out")
+				if not bool(payload):
+					if message != "":
+						print("Alert request error:", message)
+						if environ["PRODUCTION_MODE"]: self.logging.report(message)
+					return
 
 				for candle in reversed(payload["candles"]):
 					if candle[0] < alert["timestamp"]: break
 					if (alert["placement"] == "below" and candle[3] is not None and candle[3] <= alert["level"]) or (alert["placement"] == "above" and candle[2] is not None and alert["level"] <= candle[2]):
 						if environ["PRODUCTION_MODE"]:
-							database.document(f"discord/properties/messages/{str(uuid4())}").set({
+							await database.document(f"discord/properties/messages/{str(uuid4())}").set({
 								"title": f"Price of {ticker.get('name')}{exchangeName} hit {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')}.",
 								"description": alert.get("triggerMessage"),
 								"subtitle": "Price Alerts",
@@ -174,12 +160,9 @@ class AlertsServer(object):
 		except Exception:
 			print(format_exc())
 			if environ["PRODUCTION_MODE"]: self.logging.report_exception(user=f"{accountId}, {authorId}")
-		socket.close()
 
 
 if __name__ == "__main__":
 	environ["PRODUCTION_MODE"] = environ["PRODUCTION_MODE"] if "PRODUCTION_MODE" in environ and environ["PRODUCTION_MODE"] else ""
-
-	if not environ["PRODUCTION_MODE"]: exit(0)
 	alertsServer = AlertsServer()
-	alertsServer.run()
+	run(alertsServer.run())
