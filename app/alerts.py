@@ -1,4 +1,6 @@
 from os import environ
+environ["PRODUCTION_MODE"] = environ["PRODUCTION_MODE"] if "PRODUCTION_MODE" in environ and environ["PRODUCTION_MODE"] else ""
+
 from signal import signal, SIGINT, SIGTERM
 from time import time, sleep
 from datetime import datetime
@@ -36,7 +38,7 @@ class AlertsServer(object):
 
 		self.logging = ErrorReportingClient(service="alerts")
 
-		self.url = "https://candle-server-yzrdox65bq-uc.a.run.app/" if environ['PRODUCTION_MODE'] else "http://candle-server:6900/"
+		self.url = "https://candle-server-yzrdox65bq-uc.a.run.app/candle" if environ['PRODUCTION_MODE'] else "http://candle-server:6900/candle"
 
 	def exit_gracefully(self, signum, frame):
 		print("[Startup]: Alerts Server handler is exiting")
@@ -167,6 +169,5 @@ class AlertsServer(object):
 
 
 if __name__ == "__main__":
-	environ["PRODUCTION_MODE"] = environ["PRODUCTION_MODE"] if "PRODUCTION_MODE" in environ and environ["PRODUCTION_MODE"] else ""
 	alertsServer = AlertsServer()
 	run(alertsServer.run())
