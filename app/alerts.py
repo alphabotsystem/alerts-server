@@ -79,6 +79,7 @@ class AlertsServer(object):
 	# -------------------------
 
 	async def process_price_alerts(self):
+		startTimestamp = time()
 		authReq = google.auth.transport.requests.Request()
 		token = google.oauth2.id_token.fetch_id_token(authReq, "https://candle-server-yzrdox65bq-uc.a.run.app/")
 		headers = {
@@ -104,6 +105,7 @@ class AlertsServer(object):
 				if environ["PRODUCTION_MODE"]: self.logging.report_exception()
 			finally:
 				if len(tasks) > 0: await wait(tasks)
+				print("Task finished after", time() - startTimestamp, "seconds")
 
 	async def check_price_alert(self, session, authorId, accountId, reference, alert):
 		try:
