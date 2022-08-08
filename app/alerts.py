@@ -105,7 +105,7 @@ class AlertsServer(object):
 				if environ["PRODUCTION_MODE"]: self.logging.report_exception()
 			finally:
 				if len(tasks) > 0: await wait(tasks)
-				print("Task finished after", time() - startTimestamp, "seconds")
+				print("Task finished in", time() - startTimestamp, "seconds")
 
 	async def check_price_alert(self, session, authorId, accountId, reference, alert):
 		try:
