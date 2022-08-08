@@ -139,7 +139,7 @@ class AlertsServer(object):
 					payload, message = data.get("response"), data.get("message")
 
 				if not bool(payload):
-					if message != "":
+					if message is not None:
 						print("Alert request error:", message)
 						if environ["PRODUCTION_MODE"]: self.logging.report(message)
 					return
