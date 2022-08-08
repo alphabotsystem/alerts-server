@@ -77,10 +77,8 @@ class AlertsServer(object):
 	# -------------------------
 
 	async def process_price_alerts(self):
-		s = time()
-		auth_req = google.auth.transport.requests.Request()
-		token = google.oauth2.id_token.fetch_id_token(auth_req, "https://candle-server-yzrdox65bq-uc.a.run.app/")
-		print(time() - s)
+		authReq = google.auth.transport.requests.Request()
+		token = google.oauth2.id_token.fetch_id_token(authReq, "https://candle-server-yzrdox65bq-uc.a.run.app/")
 		headers = {
 			"Authorization": "Bearer " + token,
 			"content-type": "application/json",
