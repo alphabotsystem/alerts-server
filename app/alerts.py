@@ -38,7 +38,7 @@ class AlertsServer(object):
 
 		self.logging = ErrorReportingClient(service="alerts")
 
-		self.url = "https://candle-server-yzrdox65bq-uc.a.run.app/candle" if environ['PRODUCTION_MODE'] else "http://candle-server:6900/candle"
+		self.url = "https://candle-server-yzrdox65bq-uc.a.run.app/candle/" if environ['PRODUCTION_MODE'] else "http://candle-server:6900/candle/"
 
 	def exit_gracefully(self, signum, frame):
 		print("[Startup]: Alerts Server handler is exiting")
