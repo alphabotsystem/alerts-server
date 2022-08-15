@@ -3,3 +3,4 @@ google-cloud-firestore>=1.9.0
 ccxt>=1.92.19
 pytz>=2019.2
 aiohttp>=3.8.1
+orjson>=3.7.12

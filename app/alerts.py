@@ -6,6 +6,7 @@ from time import time, sleep
 from datetime import datetime
 import aiohttp
 from asyncio import wait, run, create_task
+from orjson import dumps, OPT_SORT_KEYS
 from uuid import uuid4
 from pytz import utc
 from traceback import format_exc
@@ -88,8 +89,9 @@ class AlertsServer(object):
 			"accept": "application/json"
 		}
 		async with aiohttp.ClientSession(headers=headers) as session:
-			tasks = []
 			try:
+				requestMap = {}
+				alerts = []
 				users = database.document("details/marketAlerts").collections()
 				async for user in users:
 					accountId = user.id
@@ -97,17 +99,53 @@ class AlertsServer(object):
 					authorId = accountId if accountId.isdigit() else self.registeredAccounts.get(accountId)
 					if authorId is None: continue
 					async for alert in user.stream():
-						tasks.append(create_task(self.check_price_alert(session, authorId, accountId, alert.reference, alert.to_dict())))
+						key = dumps(alert.to_dict()["request"]["ticker"], option=OPT_SORT_KEYS)
+						if key in requestMap:
+							requestMap[key][1].append(len(alerts))
+						else:
+							requestMap[key] = [None, [len(alerts)]]
+						alerts.append((authorId, accountId, alert))
 
+				for key, [_, indices] in requestMap.items():
+					(authorId, _, alert) = alerts[indices[0]]
+					requestMap[key][0] = await self.fetch_candles(session, authorId, alert.to_dict())
+
+				tasks = []
+				for key, [payload, indices] in requestMap.items():
+					if payload is None: continue
+					for i in indices:
+						(authorId, accountId, alert) = alerts[i]
+						tasks.append(create_task(self.check_price_alert(payload, authorId, accountId, alert.reference, alert.to_dict())))
+				if len(tasks) > 0: await wait(tasks)
+
+				print("Task finished in", time() - startTimestamp, "seconds")
 			except (KeyboardInterrupt, SystemExit): pass
 			except Exception:
 				print(format_exc())
 				if environ["PRODUCTION_MODE"]: self.logging.report_exception()
-			finally:
-				if len(tasks) > 0: await wait(tasks)
-				print("Task finished in", time() - startTimestamp, "seconds")
 
-	async def check_price_alert(self, session, authorId, accountId, reference, alert):
+	async def fetch_candles(self, session, authorId, alert):
+		try:
+			alert["request"]["timestamp"] = time()
+			alert["request"]["authorId"] = authorId
+
+			payload, message = {}, ""
+			async with session.post(self.url + alert["currentPlatform"].lower(), json=alert["request"]) as response:
+				data = await response.json()
+				payload, message = data.get("response"), data.get("message")
+
+			if not bool(payload):
+				if message is not None:
+					print("Alert request error:", message)
+					if environ["PRODUCTION_MODE"]: self.logging.report(message)
+				return
+			return payload
+		except:
+			print(format_exc())
+			if environ["PRODUCTION_MODE"]: self.logging.report_exception()
+			return { "candles": [] }
+
+	async def check_price_alert(self, payload, authorId, accountId, reference, alert):
 		try:
 			ticker = alert["request"].get("ticker")
 			exchangeName = f" ({ticker.get('exchange').get('name')})" if ticker.get("exchange") else ''
@@ -130,20 +168,6 @@ class AlertsServer(object):
 					print(f"{accountId}: price alert for {ticker.get('name')}{exchangeName} at {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')} expired")
 
 			else:
-				alert["request"]["timestamp"] = time()
-				alert["request"]["authorId"] = authorId
-
-				payload, message = {}, ""
-				async with session.post(self.url + alert["currentPlatform"].lower(), json=alert["request"]) as response:
-					data = await response.json()
-					payload, message = data.get("response"), data.get("message")
-
-				if not bool(payload):
-					if message is not None:
-						print("Alert request error:", message)
-						if environ["PRODUCTION_MODE"]: self.logging.report(message)
-					return
-
 				for candle in reversed(payload["candles"]):
 					if candle[0] < alert["timestamp"]: break
 					if (alert["placement"] == "below" and candle[3] is not None and candle[3] <= alert["level"]) or (alert["placement"] == "above" and candle[2] is not None and alert["level"] <= candle[2]):
