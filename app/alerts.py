@@ -4,7 +4,7 @@ environ["PRODUCTION_MODE"] = environ["PRODUCTION_MODE"] if "PRODUCTION_MODE" in 
 from signal import signal, SIGINT, SIGTERM
 from time import time, sleep
 from datetime import datetime
-import aiohttp
+from aiohttp import TCPConnector, ClientSession
 from asyncio import wait, run, create_task
 from orjson import dumps, OPT_SORT_KEYS
 from uuid import uuid4
@@ -88,7 +88,8 @@ class AlertsServer(object):
 			"content-type": "application/json",
 			"accept": "application/json"
 		}
-		async with aiohttp.ClientSession(headers=headers) as session:
+		conn = TCPConnector(limit=5)
+		async with ClientSession(connector=conn, headers=headers) as session:
 			try:
 				requestMap = {}
 				alerts = []
