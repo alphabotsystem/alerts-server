@@ -103,15 +103,15 @@ class AlertsServer(object):
 						if key in requestMap:
 							requestMap[key][1].append(len(alerts))
 						else:
-							requestMap[key] = [None, [len(alerts)]]
+							requestMap[key] = [
+								self.fetch_candles(session, authorId, alert.to_dict()),
+								[len(alerts)]
+							]
 						alerts.append((authorId, accountId, alert))
 
-				for key, [_, indices] in requestMap.items():
-					(authorId, _, alert) = alerts[indices[0]]
-					requestMap[key][0] = await self.fetch_candles(session, authorId, alert.to_dict())
-
 				tasks = []
-				for key, [payload, indices] in requestMap.items():
+				for key, [request, indices] in requestMap.items():
+					payload = await request
 					if payload is None: continue
 					for i in indices:
 						(authorId, accountId, alert) = alerts[i]
