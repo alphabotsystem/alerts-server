@@ -104,7 +104,7 @@ class AlertsServer(object):
 							requestMap[key][1].append(len(alerts))
 						else:
 							requestMap[key] = [
-								self.fetch_candles(session, authorId, alert.to_dict()),
+								create_task(self.fetch_candles(session, authorId, alert.to_dict())),
 								[len(alerts)]
 							]
 						alerts.append((authorId, accountId, alert))
