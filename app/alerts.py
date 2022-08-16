@@ -1,5 +1,5 @@
 from os import environ
-environ["PRODUCTION_MODE"] = environ["PRODUCTION_MODE"] if "PRODUCTION_MODE" in environ and environ["PRODUCTION_MODE"] else ""
+environ["PRODUCTION"] = environ["PRODUCTION"] if "PRODUCTION" in environ and environ["PRODUCTION"] else ""
 
 from signal import signal, SIGINT, SIGTERM
 from time import time, sleep
@@ -39,7 +39,7 @@ class AlertsServer(object):
 
 		self.logging = ErrorReportingClient(service="alerts")
 
-		self.url = "https://candle-server-yzrdox65bq-uc.a.run.app/candle/" if environ['PRODUCTION_MODE'] else "http://candle-server:6900/candle/"
+		self.url = "https://candle-server-yzrdox65bq-uc.a.run.app/candle/" if environ['PRODUCTION'] else "http://candle-server:6900/candle/"
 
 	def exit_gracefully(self, signum, frame):
 		print("[Startup]: Alerts Server handler is exiting")
@@ -64,7 +64,7 @@ class AlertsServer(object):
 			except (KeyboardInterrupt, SystemExit): return
 			except Exception:
 				print(format_exc())
-				if environ["PRODUCTION_MODE"]: self.logging.report_exception()
+				if environ["PRODUCTION"]: self.logging.report_exception()
 
 	async def update_accounts(self):
 		try:
@@ -72,7 +72,7 @@ class AlertsServer(object):
 		except (KeyboardInterrupt, SystemExit): pass
 		except Exception:
 			print(format_exc())
-			if environ["PRODUCTION_MODE"]: self.logging.report_exception()
+			if environ["PRODUCTION"]: self.logging.report_exception()
 
 
 	# -------------------------
@@ -96,7 +96,7 @@ class AlertsServer(object):
 				users = database.document("details/marketAlerts").collections()
 				async for user in users:
 					accountId = user.id
-					if not environ["PRODUCTION_MODE"] and accountId != "ebOX1w1N2DgMtXVN978fnL0FKCP2": continue
+					if not environ["PRODUCTION"] and accountId != "ebOX1w1N2DgMtXVN978fnL0FKCP2": continue
 					authorId = accountId if accountId.isdigit() else self.registeredAccounts.get(accountId)
 					if authorId is None: continue
 					async for alert in user.stream():
@@ -123,7 +123,7 @@ class AlertsServer(object):
 			except (KeyboardInterrupt, SystemExit): pass
 			except Exception:
 				print(format_exc())
-				if environ["PRODUCTION_MODE"]: self.logging.report_exception()
+				if environ["PRODUCTION"]: self.logging.report_exception()
 
 	async def fetch_candles(self, session, authorId, alert):
 		try:
@@ -138,12 +138,12 @@ class AlertsServer(object):
 			if not bool(payload):
 				if message is not None:
 					print("Alert request error:", message)
-					if environ["PRODUCTION_MODE"]: self.logging.report(message)
+					if environ["PRODUCTION"]: self.logging.report(message)
 				return
 			return payload
 		except:
 			print(format_exc())
-			if environ["PRODUCTION_MODE"]: self.logging.report_exception()
+			if environ["PRODUCTION"]: self.logging.report_exception()
 			return { "candles": [] }
 
 	async def check_price_alert(self, payload, authorId, accountId, reference, alert):
@@ -152,7 +152,7 @@ class AlertsServer(object):
 			exchangeName = f" ({ticker.get('exchange').get('name')})" if ticker.get("exchange") else ''
 
 			if alert["timestamp"] < time() - 86400 * 30.5 * 3:
-				if environ["PRODUCTION_MODE"]:
+				if environ["PRODUCTION"]:
 					await database.document(f"discord/properties/messages/{str(uuid4())}").set({
 						"title": f"Price alert for {ticker.get('name')}{exchangeName} at {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')} expired.",
 						"subtitle": "Price Alerts",
@@ -172,7 +172,7 @@ class AlertsServer(object):
 				for candle in reversed(payload["candles"]):
 					if candle[0] < alert["timestamp"]: break
 					if (alert["placement"] == "below" and candle[3] is not None and candle[3] <= alert["level"]) or (alert["placement"] == "above" and candle[2] is not None and alert["level"] <= candle[2]):
-						if environ["PRODUCTION_MODE"]:
+						if environ["PRODUCTION"]:
 							await database.document(f"discord/properties/messages/{str(uuid4())}").set({
 								"title": f"Price of {ticker.get('name')}{exchangeName} hit {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')}.",
 								"description": alert.get("triggerMessage"),
@@ -192,7 +192,7 @@ class AlertsServer(object):
 		except (KeyboardInterrupt, SystemExit): pass
 		except Exception:
 			print(format_exc())
-			if environ["PRODUCTION_MODE"]: self.logging.report_exception(user=f"{accountId}, {authorId}")
+			if environ["PRODUCTION"]: self.logging.report_exception(user=f"{accountId}, {authorId}")
 
 
 if __name__ == "__main__":

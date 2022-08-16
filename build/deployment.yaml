@@ -28,7 +28,7 @@ spec:
             memory: "80Mi"
             cpu: "5m"
         env:
-          - name: PRODUCTION_MODE
+          - name: PRODUCTION
             value: "1"
         ports:
           - containerPort: 6906
