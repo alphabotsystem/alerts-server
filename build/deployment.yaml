@@ -17,12 +17,8 @@ spec:
     spec:
       containers:
       - name: alerts-server
-        image: europe-west4-docker.pkg.dev/nlc-bot-36685/alpha-bot/alerts-server
+        image: us-central1-docker.pkg.dev/nlc-bot-36685/alerts/production
         imagePullPolicy: Always
-        volumeMounts:
-          - name: google-cloud-auth
-            mountPath: /run/secrets/google-cloud-auth
-            readOnly: true
         resources:
           requests:
             memory: "97Mi"
@@ -32,10 +28,3 @@ spec:
             value: "1"
         ports:
           - containerPort: 6906
-      volumes:
-        - name: google-cloud-auth
-          secret:
-            secretName: google-cloud-auth
-            items:
-              - key: gcloud_credentials.json
-                path: key
