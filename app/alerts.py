@@ -39,7 +39,7 @@ class AlertsServer(object):
 
 		self.logging = ErrorReportingClient(service="alerts")
 
-		self.url = "https://candle-server:6900/candle/" if environ['PRODUCTION'] else "http://candle-server:6900/candle/"
+		self.url = "http://candle-server:6900/candle/" if environ['PRODUCTION'] else "http://candle-server:6900/candle/"
 
 	def exit_gracefully(self, signum, frame):
 		print("[Startup]: Alerts Server handler is exiting")
@@ -82,7 +82,7 @@ class AlertsServer(object):
 	async def process_price_alerts(self):
 		startTimestamp = time()
 		authReq = google.auth.transport.requests.Request()
-		token = google.oauth2.id_token.fetch_id_token(authReq, "https://candle-server:6900/")
+		token = google.oauth2.id_token.fetch_id_token(authReq, "http://candle-server:6900/")
 		headers = {
 			"Authorization": "Bearer " + token,
 			"content-type": "application/json",
