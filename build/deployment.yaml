@@ -21,8 +21,8 @@ spec:
         imagePullPolicy: Always
         resources:
           requests:
-            memory: "97Mi"
-            cpu: "15m"
+            memory: "90Mi"
+            cpu: "10m"
         env:
           - name: PRODUCTION
             value: "1"
