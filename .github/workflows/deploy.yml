@@ -10,7 +10,7 @@ env:
   GKE_CLUSTER: main-cluster
   GKE_ZONE: us-central1-c
   GAR_LOCATION: us-central1
-  SERVICE: alerts
+  SERVICE: alerts-server
 
 jobs:
   setup-build-publish-deploy:

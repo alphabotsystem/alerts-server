@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: alerts-server
-        image: us-central1-docker.pkg.dev/nlc-bot-36685/alerts/production
+        image: us-central1-docker.pkg.dev/nlc-bot-36685/alerts-server/production
         imagePullPolicy: Always
         resources:
           requests:
