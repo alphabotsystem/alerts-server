@@ -176,6 +176,7 @@ class AlertsServer(object):
 							await database.document(f"discord/properties/messages/{str(uuid4())}").set({
 								"title": f"Price of {ticker.get('name')}{exchangeName} hit {alert.get('levelText', alert['level'])}{'' if ticker.get('quote') is None else ' ' + ticker.get('quote')}.",
 								"description": alert.get("triggerMessage"),
+								"tag": alert.get("triggerTag"),
 								"subtitle": "Price Alerts",
 								"color": 6765239,
 								"user": authorId if alert["channel"] is None else None,
