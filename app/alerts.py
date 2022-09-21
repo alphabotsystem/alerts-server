@@ -17,7 +17,7 @@ from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
 
 from DatabaseConnector import DatabaseConnector
-from helpers.utils import Utils
+from helpers.utils import seconds_until_cycle, get_accepted_timeframes
 
 
 database = FirestoreClient()
@@ -53,9 +53,9 @@ class AlertsServer(object):
 	async def run(self):
 		while self.isServiceAvailable:
 			try:
-				sleep(Utils.seconds_until_cycle())
+				sleep(seconds_until_cycle())
 				t = datetime.now().astimezone(utc)
-				timeframes = Utils.get_accepted_timeframes(t)
+				timeframes = get_accepted_timeframes(t)
 
 				if "1m" in timeframes:
 					await self.update_accounts()
