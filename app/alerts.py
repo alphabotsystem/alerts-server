@@ -127,9 +127,6 @@ class AlertsServer(object):
 
 	async def fetch_candles(self, session, authorId, alert):
 		try:
-			alert["request"]["timestamp"] = time()
-			alert["request"]["authorId"] = authorId
-
 			payload, message = {}, ""
 			async with session.post(self.url + alert["currentPlatform"].lower(), json=alert["request"]) as response:
 				data = await response.json()
