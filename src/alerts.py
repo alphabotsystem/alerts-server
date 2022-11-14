@@ -11,8 +11,6 @@ from uuid import uuid4
 from pytz import utc
 from traceback import format_exc
 
-import google.auth.transport.requests
-import google.oauth2.id_token
 from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
 
@@ -81,15 +79,8 @@ class AlertsServer(object):
 
 	async def process_price_alerts(self):
 		startTimestamp = time()
-		authReq = google.auth.transport.requests.Request()
-		token = google.oauth2.id_token.fetch_id_token(authReq, "http://candle-server:6900/")
-		headers = {
-			"Authorization": "Bearer " + token,
-			"content-type": "application/json",
-			"accept": "application/json"
-		}
 		conn = TCPConnector(limit=5)
-		async with ClientSession(connector=conn, headers=headers) as session:
+		async with ClientSession(connector=conn) as session:
 			try:
 				requestMap = {}
 				alerts = []
