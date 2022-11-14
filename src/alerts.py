@@ -96,7 +96,7 @@ class AlertsServer(object):
 							requestMap[key][1].append(len(alerts))
 						else:
 							requestMap[key] = [
-								create_task(self.fetch_candles(session, authorId, alert.to_dict())),
+								create_task(self.fetch_candles(session, alert.to_dict())),
 								[len(alerts)]
 							]
 						alerts.append((authorId, accountId, alert))
@@ -116,7 +116,7 @@ class AlertsServer(object):
 				print(format_exc())
 				if environ["PRODUCTION"]: self.logging.report_exception()
 
-	async def fetch_candles(self, session, authorId, alert):
+	async def fetch_candles(self, session, alert):
 		try:
 			payload, message = {}, ""
 			async with session.post(self.url + alert["currentPlatform"].lower(), json=alert["request"]) as response:
