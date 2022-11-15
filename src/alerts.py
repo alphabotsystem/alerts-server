@@ -85,11 +85,14 @@ class AlertsServer(object):
 				requestMap = {}
 				alerts = []
 				users = database.document("details/marketAlerts").collections()
+
 				async for user in users:
 					accountId = user.id
 					if not environ["PRODUCTION"] and accountId != "ebOX1w1N2DgMtXVN978fnL0FKCP2": continue
+
 					authorId = accountId if accountId.isdigit() else self.registeredAccounts.get(accountId)
 					if authorId is None: continue
+
 					async for alert in user.stream():
 						key = dumps(alert.to_dict()["request"]["ticker"], option=OPT_SORT_KEYS)
 						if key in requestMap:
