@@ -2,23 +2,26 @@ from os import environ
 environ["PRODUCTION"] = environ["PRODUCTION"] if "PRODUCTION" in environ and environ["PRODUCTION"] else ""
 
 from signal import signal, SIGINT, SIGTERM
-from time import time, sleep
-from datetime import datetime
+from time import time, mktime
+from datetime import datetime, timedelta
 from aiohttp import TCPConnector, ClientSession
-from asyncio import wait, run, create_task
+from asyncio import sleep, wait, run, create_task
 from orjson import dumps, OPT_SORT_KEYS
 from uuid import uuid4
-from pytz import utc
+from pytz import utc, timezone
 from traceback import format_exc
 
 from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
+from feedparser import parse
 
 from DatabaseConnector import DatabaseConnector
 from helpers.utils import seconds_until_cycle, get_accepted_timeframes
+from helpers.haltmap import HALT_MAP
 
 
 database = FirestoreClient()
+EST = timezone('US/Eastern')
 
 
 class AlertsServer(object):
@@ -51,13 +54,16 @@ class AlertsServer(object):
 	async def run(self):
 		while self.isServiceAvailable:
 			try:
-				sleep(seconds_until_cycle())
+				await sleep(seconds_until_cycle())
 				t = datetime.now().astimezone(utc)
 				timeframes = get_accepted_timeframes(t)
 
 				if "1m" in timeframes:
 					await self.update_accounts()
-					await self.process_price_alerts()
+					await wait([
+						create_task(self.process_price_alerts()),
+						create_task(self.process_halt_alerts()),
+					])
 
 			except (KeyboardInterrupt, SystemExit): return
 			except Exception:
@@ -185,6 +191,51 @@ class AlertsServer(object):
 		except Exception:
 			print(format_exc())
 			if environ["PRODUCTION"]: self.logging.report_exception(user=f"{accountId}, {authorId}")
+
+
+	# -------------------------
+	# Halt Alerts
+	# -------------------------
+
+	def parse_halt_date(self, date):
+		return datetime.strptime(date, "%m/%d/%Y %H:%M:%S").replace(tzinfo=EST).timestamp()
+
+	def parse_halts(self, data):
+		parsed = []
+		symbols = set()
+		for halt in data:
+			resumption = None if halt["ndaq_resumptiondate"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
+			if resumption is None or resumption > time():
+				symbols.add(halt["ndaq_issuesymbol"])
+				parsed.append({
+					"ticker": halt["ndaq_issuesymbol"],
+					"timestamp" : self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"]),
+					"code": halt["ndaq_reasoncode"],
+					"resumption": resumption,
+					"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
+				})
+		return parsed, symbols
+
+	async def process_halt_alerts(self):
+		data = parse("http://www.nasdaqtrader.com/rss.aspx?feed=tradehalts")
+		halts, symbols = self.parse_halts(data.entries)
+
+		if len(halts) != len(symbols):
+			print("Duplicate halts detected!")
+			print(halts)
+			print(symbols)
+
+		database.document("details/halts").set({
+			"timestamp": time(),
+			"halts": halts,
+			"symbols": list(symbols)
+		})
+
+		# for halt in halts:
+		# 	if halt["resumption"] is None:
+		# 		print(datetime.strftime(datetime.fromtimestamp(halt["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "-> no resumption date", halt["hash"])
+		# 	else:
+		# 		print(datetime.strftime(datetime.fromtimestamp(halt["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "->", datetime.strftime(datetime.fromtimestamp(halt["resumption"]), "%Y/%m/%d/ %H:%M:%S"), halt["hash"])
 
 
 if __name__ == "__main__":
