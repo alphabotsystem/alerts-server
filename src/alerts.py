@@ -225,7 +225,7 @@ class AlertsServer(object):
 			print(halts)
 			print(symbols)
 
-		database.document("details/halts").set({
+		await database.document("details/halts").set({
 			"timestamp": time(),
 			"halts": halts,
 			"symbols": list(symbols)
