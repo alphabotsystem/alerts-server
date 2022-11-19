@@ -214,7 +214,7 @@ class AlertsServer(object):
 					"resumption": resumption,
 					"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
 				})
-		return parsed, symbols
+		return sorted(parsed, key=lambda h: h["ticker"]), symbols
 
 	async def process_halt_alerts(self):
 		data = parse("http://www.nasdaqtrader.com/rss.aspx?feed=tradehalts")
