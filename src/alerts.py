@@ -204,7 +204,7 @@ class AlertsServer(object):
 		parsed = []
 		symbols = set()
 		for halt in data:
-			resumption = None if halt["ndaq_resumptiondate"] == "" or ["ndaq_resumptiontradetime"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
+			resumption = None if halt["ndaq_resumptiondate"] == "" or halt["ndaq_resumptiontradetime"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
 			if resumption is None or resumption > time():
 				symbols.add(halt["ndaq_issuesymbol"])
 				parsed.append({
