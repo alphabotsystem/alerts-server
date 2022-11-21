@@ -204,7 +204,7 @@ class AlertsServer(object):
 		parsed = []
 		symbols = set()
 		for halt in data:
-			resumption = None if halt["ndaq_resumptiondate"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
+			resumption = None if halt["ndaq_resumptiondate"] == "" or ["ndaq_resumptiontradetime"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
 			if resumption is None or resumption > time():
 				symbols.add(halt["ndaq_issuesymbol"])
 				parsed.append({
@@ -231,11 +231,11 @@ class AlertsServer(object):
 			"symbols": list(symbols)
 		})
 
-		# for halt in halts:
-		# 	if halt["resumption"] is None:
-		# 		print(datetime.strftime(datetime.fromtimestamp(halt["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "-> no resumption date", halt["hash"])
-		# 	else:
-		# 		print(datetime.strftime(datetime.fromtimestamp(halt["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "->", datetime.strftime(datetime.fromtimestamp(halt["resumption"]), "%Y/%m/%d/ %H:%M:%S"), halt["hash"])
+		for halt in halts:
+			if halt["resumption"] is None:
+				print(datetime.strftime(datetime.fromtimestamp(halt["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "-> no resumption date", halt["hash"])
+			else:
+				print(datetime.strftime(datetime.fromtimestamp(halt["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "->", datetime.strftime(datetime.fromtimestamp(halt["resumption"]), "%Y/%m/%d/ %H:%M:%S"), halt["hash"])
 
 
 if __name__ == "__main__":
