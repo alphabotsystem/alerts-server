@@ -40,6 +40,7 @@ class AlertsServer(object):
 
 		self.logging = ErrorReportingClient(service="alerts")
 
+		self.haltCache = {}
 		self.url = "http://candle-server:6900/candle/" if environ['PRODUCTION'] else "http://candle-server:6900/candle/"
 
 	def exit_gracefully(self, signum, frame):
@@ -201,41 +202,48 @@ class AlertsServer(object):
 		return datetime.strptime(date, "%m/%d/%Y %H:%M:%S").replace(tzinfo=EST).timestamp()
 
 	def parse_halts(self, data):
-		parsed = []
-		symbols = set()
+		parsed = {}
 		for halt in data:
 			resumption = None if halt["ndaq_resumptiondate"] == "" or halt["ndaq_resumptiontradetime"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
 			if resumption is None or resumption > time():
-				symbols.add(halt["ndaq_issuesymbol"])
-				parsed.append({
-					"ticker": halt["ndaq_issuesymbol"],
+				symbol = halt["ndaq_issuesymbol"]
+				if symbol in parsed:
+					print("Duplicate halt:", symbol)
+					if environ["PRODUCTION"]: self.logging.report(f"Duplicate halt: {symbol}")
+					continue
+				parsed[symbol] = {
 					"timestamp" : self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"]),
 					"code": halt["ndaq_reasoncode"],
 					"resumption": resumption,
 					"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
-				})
-		return sorted(parsed, key=lambda h: h["ticker"]), symbols
+				}
+		return parsed
 
 	async def process_halt_alerts(self):
 		data = parse("http://www.nasdaqtrader.com/rss.aspx?feed=tradehalts")
-		halts, symbols = self.parse_halts(data.entries)
+		halts = self.parse_halts(data.entries)
 
-		if len(halts) != len(symbols):
-			print("Duplicate halts detected!")
-			print(halts)
-			print(symbols)
+		if self.haltCache.get("timestamp") is not None:
+			new = set(symbols.keys()).difference(set(self.haltCache["halts"].keys()))
+		else:
+			new = set()
 
-		await database.document("details/halts").set({
+		for symbol, halt in self.haltCache.get("halts", {}).items():
+			if symbol not in halts or halts[symbol]["hash"] == halt["hash"]:
+				continue
+			new.add(symbol)
+
+		self.haltCache = {
 			"timestamp": time(),
 			"halts": halts,
-			"symbols": list(symbols)
-		})
+		}
+		await database.document("details/halts").set(self.haltCache)
 
-		for halt in halts:
-			if halt["resumption"] is None:
-				print(datetime.strftime(datetime.fromtimestamp(halt["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "-> no resumption date", halt["hash"])
+		for symbol in new:
+			if halts[symbol]["resumption"] is None:
+				print(datetime.strftime(datetime.fromtimestamp(halts[symbol]["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "-> no resumption date", halts[symbol]["hash"])
 			else:
-				print(datetime.strftime(datetime.fromtimestamp(halt["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "->", datetime.strftime(datetime.fromtimestamp(halt["resumption"]), "%Y/%m/%d/ %H:%M:%S"), halt["hash"])
+				print(datetime.strftime(datetime.fromtimestamp(halts[symbol]["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "->", datetime.strftime(datetime.fromtimestamp(halts[symbol]["resumption"]), "%Y/%m/%d/ %H:%M:%S"), halts[symbol]["hash"])
 
 
 if __name__ == "__main__":
