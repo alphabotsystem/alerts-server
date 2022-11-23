@@ -224,7 +224,7 @@ class AlertsServer(object):
 		halts = self.parse_halts(data.entries)
 
 		if self.haltCache.get("timestamp") is not None:
-			new = set(symbols.keys()).difference(set(self.haltCache["halts"].keys()))
+			new = set(halts.keys()).difference(set(self.haltCache["halts"].keys()))
 		else:
 			new = set()
 
