@@ -11,6 +11,7 @@ from uuid import uuid4
 from pytz import utc, timezone
 from traceback import format_exc
 
+from discord import Webhook, Embed, File
 from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
 from feedparser import parse
@@ -159,7 +160,8 @@ class AlertsServer(object):
 						"user": authorId,
 						"channel": alert.get("channel"),
 						"backupUser": authorId,
-						"backupChannel": alert.get("backupChannel")
+						"backupChannel": alert.get("backupChannel"),
+						"destination": alert.get("destination", 401328409499664394)
 					})
 					await reference.delete()
 
@@ -180,7 +182,8 @@ class AlertsServer(object):
 								"user": authorId if alert["channel"] is None else None,
 								"channel": alert.get("channel"),
 								"backupUser": authorId,
-								"backupChannel": alert.get("backupChannel")
+								"backupChannel": alert.get("backupChannel"),
+								"destination": alert.get("destination", 401328409499664394)
 							})
 							await reference.delete()
 
@@ -206,7 +209,7 @@ class AlertsServer(object):
 		for halt in data:
 			resumption = None if halt["ndaq_resumptiondate"] == "" or halt["ndaq_resumptiontradetime"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
 			if resumption is None or resumption > time():
-				symbol = halt["ndaq_issuesymbol"]
+				symbol = halt["ndaq_issuesymbol"].upper()
 				if symbol in parsed:
 					print("Duplicate halt:", symbol)
 					if environ["PRODUCTION"]: self.logging.report(f"Duplicate halt: {symbol}")
@@ -220,30 +223,77 @@ class AlertsServer(object):
 		return parsed
 
 	async def process_halt_alerts(self):
-		data = parse("http://www.nasdaqtrader.com/rss.aspx?feed=tradehalts")
-		halts = self.parse_halts(data.entries)
+		try:
+			data = parse("http://www.nasdaqtrader.com/rss.aspx?feed=tradehalts")
+			halts = self.parse_halts(data.entries)
 
-		if self.haltCache.get("timestamp") is not None:
-			new = set(halts.keys()).difference(set(self.haltCache["halts"].keys()))
-		else:
-			new = set()
-
-		for symbol, halt in self.haltCache.get("halts", {}).items():
-			if symbol not in halts or halts[symbol]["hash"] == halt["hash"]:
-				continue
-			new.add(symbol)
-
-		self.haltCache = {
-			"timestamp": time(),
-			"halts": halts,
-		}
-		await database.document("details/halts").set(self.haltCache)
-
-		for symbol in new:
-			if halts[symbol]["resumption"] is None:
-				print(datetime.strftime(datetime.fromtimestamp(halts[symbol]["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "-> no resumption date", halts[symbol]["hash"])
+			if self.haltCache.get("timestamp") is not None:
+				new = set(halts.keys()).difference(set(self.haltCache["halts"].keys()))
 			else:
-				print(datetime.strftime(datetime.fromtimestamp(halts[symbol]["timestamp"]), "%Y/%m/%d/ %H:%M:%S"), "->", datetime.strftime(datetime.fromtimestamp(halts[symbol]["resumption"]), "%Y/%m/%d/ %H:%M:%S"), halts[symbol]["hash"])
+				new = set()
+
+			for symbol, halt in self.haltCache.get("halts", {}).items():
+				if symbol not in halts or halts[symbol]["hash"] == halt["hash"]:
+					continue
+				new.add(symbol)
+
+			self.haltCache = {
+				"timestamp": time(),
+				"halts": halts,
+			}
+			await database.document("details/halts").set(self.haltCache)
+
+			startTimestamp = time()
+			conn = TCPConnector(limit=5)
+			async with ClientSession(connector=conn) as session:
+				url = "https://discord.com/api/webhooks/1048157795830206514/MTBlZOqeYNTqeo0ocb9MoIBPzeIZzVmXPVJhrobbqzYkSx8luk6bOMF-kGBmcxyVuVLu"
+				webhook = Webhook.from_url(url, session=session)
+
+				for symbol in new:
+					platforms = request.get_platform_order_for("c")
+					responseMessage, task = await process_chart_arguments([], platforms, tickerId=symbol)
+
+					if responseMessage is not None:
+						print(responseMessage)
+						continue
+
+					currentTask = task.get(task.get("currentPlatform"))
+					timeframes = task.pop("timeframes")
+					for p, t in timeframes.items(): task[p]["currentTimeframe"] = t[0]
+
+					payload, responseMessage = await process_task(task, "chart")
+
+					files, embeds = [], []
+					if responseMessage == "requires pro":
+						embed = Embed(title=f"The requested chart for `{currentTask.get('ticker').get('name')}` is only available on TradingView Premium.", description="All TradingView Premium charts are bundled with the [Advanced Charting add-on](https://www.alpha.bot/pro/advanced-charting).", color=constants.colors["gray"])
+						embed.set_author(name="TradingView Premium", icon_url=static_storage.error_icon)
+						embeds.append(embed)
+					elif payload is None:
+						errorMessage = f"Requested chart for `{currentTask.get('ticker').get('name')}` is not available." if responseMessage is None else responseMessage
+						embed = Embed(title=errorMessage, color=constants.colors["gray"])
+						embed.set_author(name="Chart not available", icon_url=static_storage.error_icon)
+						embeds.append(embed)
+					else:
+						task["currentPlatform"] = payload.get("platform")
+						currentTask = task.get(task.get("currentPlatform"))
+						files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
+						if halts[symbol]["resumption"] is None:
+							embed = Embed(title=f"Trading for `{currentTask.get('ticker').get('name')}` has been halted.", description=f"Reason: {halts[symbol]['code']}\nNo resumption date", color=constants.colors["gray"])
+						else:
+							embed = Embed(title=f"Trading for `{currentTask.get('ticker').get('name')}` has been halted.", description=f"Reason: {halts[symbol]['code']}\n{datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S')}", color=constants.colors["gray"])
+
+					await webhook.send(
+						content=content,
+						files=files,
+						embeds=embeds,
+						username="Alpha",
+						avatar_url="https://cdn.discordapp.com/app-icons/401328409499664394/326e5bef971f8227de79c09d82031dda.png",
+						wait=False
+					)
+		except (KeyboardInterrupt, SystemExit): pass
+		except Exception:
+			print(format_exc())
+			if environ["PRODUCTION"]: self.logging.report_exception()
 
 
 if __name__ == "__main__":
