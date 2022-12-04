@@ -17,4 +17,4 @@ RUN rm -r ./dependencies
 COPY ./src ./
 
 # Run
-ENTRYPOINT ["python", "alerts.py"]
+ENTRYPOINT ["python", "-u", "alerts.py"]
