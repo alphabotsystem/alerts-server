@@ -16,7 +16,9 @@ from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
 from feedparser import parse
 
+from Processor import process_chart_arguments, process_task
 from DatabaseConnector import DatabaseConnector
+from CommandRequest import CommandRequest
 from helpers.utils import seconds_until_cycle, get_accepted_timeframes
 from helpers.haltmap import HALT_MAP
 
@@ -250,6 +252,24 @@ class AlertsServer(object):
 				webhook = Webhook.from_url(url, session=session)
 
 				for symbol in new:
+					guildId = 414498292655980583
+
+					guild = await self.guildProperties.get(guildId, {})
+					accountId = guild.get("settings", {}).get("setup", {}).get("connection")
+					user = await self.accountProperties.get(accountId, {})
+
+					if not guild: await post.reference.delete()
+					if guild.get("stale", {}).get("count", 0) > 0: continue
+
+					request = CommandRequest(
+						accountId=accountId,
+						authorId=data["authorId"],
+						channelId=data["channelId"],
+						guildId=guildId,
+						accountProperties=user,
+						guildProperties=guild
+					)
+
 					platforms = request.get_platform_order_for("c")
 					responseMessage, task = await process_chart_arguments([], platforms, tickerId=symbol)
 
