@@ -29,6 +29,7 @@ EST = timezone('US/Eastern')
 
 class AlertsServer(object):
 	accountProperties = DatabaseConnector(mode="account")
+	guildProperties = DatabaseConnector(mode="guild")
 	registeredAccounts = {}
 
 
