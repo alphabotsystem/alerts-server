@@ -264,8 +264,8 @@ class AlertsServer(object):
 
 					request = CommandRequest(
 						accountId=accountId,
-						authorId=data["authorId"],
-						channelId=data["channelId"],
+						# authorId=data["authorId"],
+						# channelId=data["channelId"],
 						guildId=guildId,
 						accountProperties=user,
 						guildProperties=guild
