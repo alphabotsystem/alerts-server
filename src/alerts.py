@@ -306,7 +306,7 @@ class AlertsServer(object):
 							embed = Embed(title=f"Trading for `{currentTask.get('ticker').get('name')}` has been halted.", description=f"Reason: {halts[symbol]['code']}\n{datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S')}", color=constants.colors["gray"])
 
 					await webhook.send(
-						content=content,
+						# content=content,
 						files=files,
 						embeds=embeds,
 						username="Alpha",
