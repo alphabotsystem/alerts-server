@@ -301,9 +301,9 @@ class AlertsServer(object):
 						currentTask = task.get(task.get("currentPlatform"))
 						files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
 						if halts[symbol]["resumption"] is None:
-							embed = Embed(title=f"Trading for `{currentTask.get('ticker').get('name')}` has been halted.", description=f"Reason: {halts[symbol]['code']}\nNo resumption date", color=constants.colors["gray"])
+							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", description=f"Reason: {HALT_MAP.get(halts[symbol]['code'], halts[symbol]['code'])}\nNo resumption date", color=constants.colors["gray"])
 						else:
-							embed = Embed(title=f"Trading for `{currentTask.get('ticker').get('name')}` has been halted.", description=f"Reason: {halts[symbol]['code']}\n{datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S')}", color=constants.colors["gray"])
+							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", description=f"Reason: {HALT_MAP.get(halts[symbol]['code'], halts[symbol]['code'])}\n{datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S')}", color=constants.colors["gray"])
 						embeds.append(embed)
 
 					await webhook.send(
