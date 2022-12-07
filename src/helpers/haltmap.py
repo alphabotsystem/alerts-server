@@ -1,21 +1,15 @@
 HALT_MAP = {
 	"T1": [
-		"Halt - News Pending"
-	],
-	"Trading": [
-		"is halted pending the release of material news."
+		"Halt - News Pending",
+		"Trading is halted pending the release of material news."
 	],
 	"T2": [
-		"Halt - News Released"
-	],
-	"The": [
-		"news has begun the dissemination process through a Regulation FD compliant method(s)."
+		"Halt - News Released",
+		"The news has begun the dissemination process through a Regulation FD compliant method(s)."
 	],
 	"T5": [
-		"Single Stock Trading Pause in Effect"
-	],
-	"Trading": [
-		"has been paused by NASDAQ due to a 10% or more price move in the security in a five-minute period."
+		"Single Stock Trading Pause in Effect",
+		"Trading has been paused by NASDAQ due to a 10% or more price move in the security in a five-minute period."	
 	],
 	"T6": [
 		"Halt - Extraordinary Market Activity",
@@ -26,28 +20,20 @@ HALT_MAP = {
 		"Trading is halted in an ETF due to the consideration of, among other factors: 1) the extent to which trading has ceased in the underlying security(s); 2) whether trading has been halted or suspended in the primary market(s) for any combination of underlying securities accounting for 20% or more of the applicable current index group value; 3) the presence of other unusual conditions or circumstances deemed to be detrimental to the maintenance of a fair and orderly market."
 	],
 	"T12": [
-		"Halt - Additional Information Requested by NASDAQ"
-	],
-	"Trading": [
-		"is halted pending receipt of additional information requested by NASDAQ."
+		"Halt - Additional Information Requested by NASDAQ",
+		"Trading is halted pending receipt of additional information requested by NASDAQ."
 	],
 	"H4": [
 		"Halt - Non-compliance"
-	],
-	"Trading": [
-		"is halted due to the company's non-compliance with NASDAQ listing requirements."
+		"Trading is halted due to the company's non-compliance with NASDAQ listing requirements."
 	],
 	"H9": [
 		"Halt - Not Current"
-	],
-	"Trading": [
-		"is halted because the company is not current in its required filings."
+		"Trading is halted because the company is not current in its required filings."
 	],
 	"H10": [
 		"Halt - SEC Trading Suspension"
-	],
-	"The": [
-		"Securities and Exchange Commission has suspended trading in this stock."
+		"The Securities and Exchange Commission has suspended trading in this stock."
 	],
 	"H11": [
 		"Halt - Regulatory Concern",
