@@ -17,6 +17,7 @@ from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
 from feedparser import parse
 
+from helpers import constants
 from Processor import process_chart_arguments, process_task
 from DatabaseConnector import DatabaseConnector
 from CommandRequest import CommandRequest
