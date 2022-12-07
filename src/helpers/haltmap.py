@@ -71,7 +71,7 @@ HALT_MAP = {
 	],
 	"T3": [
 		"News and Resumption Times",
-		"The news has been fully disseminated through a Regulation FD compliant method(s); or NASDAQ has determined either that system misuse or malfunction that caused extraordinary market activity will no longer have a material effect on the market for, the security or that system misuse or malfunction is not the cause of the extraordinary market activity; or NASDAQ has determined the conditions which led to a halt in an Exchange-Traded Fund are no longer present. Two times will be displayed: (1) the time when market participants can enter quotations, followed by (2) the time the security will be released for trading. All trade halt and resumption times will be posted in HH:MM:SS format."
+		"The news has been fully disseminated through a Regulation FD compliant method(s); or NASDAQ has determined either that system misuse or malfunction that caused extraordinary market activity will no longer have a material effect on the market for, the security or that system misuse or malfunction is not the cause of the extraordinary market activity; or NASDAQ has determined the conditions which led to a halt in an Exchange-Traded Fund are no longer present. Two times will be displayed: (1) the time when market participants can enter quotations, followed by (2) the time the security will be released for trading."
 	],
 	"T7": [
 		"Single Stock Trading Pause/Quotation-Only Period",

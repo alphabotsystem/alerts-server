@@ -301,13 +301,13 @@ class AlertsServer(object):
 						currentTask = task.get(task.get("currentPlatform"))
 						files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
 
+						embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["gray"])
 						code = HALT_MAP[halts[symbol]['code']]
-						reason = f"{code[0]} ({halts[symbol]['code']})"
-						explanation = f"\nExplanation: {code[1]}" if len(code) == 2 else ""
-						if halts[symbol]["resumption"] is None:
-							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", description=f"Reason: {reason}{explanation}\nNo resumption date", color=constants.colors["gray"])
-						else:
-							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", description=f"Reason: {reason}{explanation}\n{datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S')}", color=constants.colors["gray"])
+						embed.add_field(name="Reason", value=f"{code[0]} (code: `{halts[symbol]['code']}`)", inline=False)
+						if len(code) == 2:
+							embed.add_field(name="Explanation", value=code[1], inline=False)
+						if halts[symbol]["resumption"] is not None:
+							embed.add_field(name="Resumption", value=datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S'), inline=False)
 						embeds.append(embed)
 
 					await webhook.send(
