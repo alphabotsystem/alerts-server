@@ -274,7 +274,7 @@ class AlertsServer(object):
 					)
 
 					platforms = request.get_platform_order_for("c")
-					responseMessage, task = await process_chart_arguments([], platforms, tickerId=symbol)
+					responseMessage, task = await process_chart_arguments([], platforms, tickerId=f"NASDAQ:{symbol}")
 
 					if responseMessage is not None:
 						print(responseMessage)
@@ -287,31 +287,21 @@ class AlertsServer(object):
 					payload, responseMessage = await process_task(task, "chart")
 
 					files, embeds = [], []
-					if responseMessage == "requires pro":
-						embed = Embed(title=f"The requested chart for `{currentTask.get('ticker').get('name')}` is only available on TradingView Premium.", description="All TradingView Premium charts are bundled with the [Advanced Charting add-on](https://www.alpha.bot/pro/advanced-charting).", color=constants.colors["gray"])
-						embed.set_author(name="TradingView Premium", icon_url=static_storage.error_icon)
-						embeds.append(embed)
-					elif payload is None:
-						errorMessage = f"Requested chart for `{currentTask.get('ticker').get('name')}` is not available." if responseMessage is None else responseMessage
-						embed = Embed(title=errorMessage, color=constants.colors["gray"])
-						embed.set_author(name="Chart not available", icon_url=static_storage.error_icon)
-						embeds.append(embed)
-					else:
+					if payload is not None:
 						task["currentPlatform"] = payload.get("platform")
 						currentTask = task.get(task.get("currentPlatform"))
 						files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
 
-						embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["gray"])
-						code = HALT_MAP[halts[symbol]['code']]
-						embed.add_field(name="Reason", value=f"{code[0]} (code: `{halts[symbol]['code']}`)", inline=False)
-						if len(code) == 2:
-							embed.add_field(name="Explanation", value=code[1], inline=False)
-						if halts[symbol]["resumption"] is not None:
-							embed.add_field(name="Resumption", value=datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S'), inline=False)
-						embeds.append(embed)
+					embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.")
+					code = HALT_MAP[halts[symbol]['code']]
+					embed.add_field(name="Reason", value=f"{code[0]} (code: `{halts[symbol]['code']}`)", inline=False)
+					if len(code) == 2:
+						embed.add_field(name="Explanation", value=code[1], inline=False)
+					if halts[symbol]["resumption"] is not None:
+						embed.add_field(name="Resumption", value=datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S'), inline=False)
+					embeds.append(embed)
 
 					await webhook.send(
-						# content=content,
 						files=files,
 						embeds=embeds,
 						username="Alpha",
