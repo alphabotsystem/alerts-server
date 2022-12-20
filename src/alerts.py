@@ -292,7 +292,7 @@ class AlertsServer(object):
 						currentTask = task.get(task.get("currentPlatform"))
 						files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
 
-					embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.")
+					embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["orange"])
 					code = HALT_MAP[halts[symbol]['code']]
 					embed.add_field(name="Reason", value=f"{code[0]} (code: `{halts[symbol]['code']}`)", inline=False)
 					if len(code) == 2:
