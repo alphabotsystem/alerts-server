@@ -13,6 +13,7 @@ from pytz import utc, timezone
 from traceback import format_exc
 
 from discord import Webhook, Embed, File
+from discord.utils import MISSING
 from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
 from feedparser import parse
