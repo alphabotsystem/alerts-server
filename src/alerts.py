@@ -127,7 +127,6 @@ class AlertsServer(object):
 				tasks = []
 				for key, [request, indices] in requestMap.items():
 					payload = await request
-					if payload is None: continue
 					for i in indices:
 						(authorId, accountId, alert) = alerts[i]
 						tasks.append(create_task(self.check_price_alert(payload, authorId, accountId, alert.reference, alert.to_dict())))
@@ -150,7 +149,7 @@ class AlertsServer(object):
 				if message is not None:
 					print("Alert request error:", message)
 					if environ["PRODUCTION"]: self.logging.report(message)
-				return
+				return { "candles": [] }
 			return payload
 		except:
 			print(format_exc())
