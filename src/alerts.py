@@ -28,6 +28,12 @@ from helpers.haltmap import HALT_MAP
 database = FirestoreClient()
 EST = timezone('US/Eastern')
 
+NAMES = {
+	"401328409499664394": ("Alpha", "https://storage.alpha.bot/Icon.png"),
+	"487714342301859854": ("Alpha (Beta)", MISSING),
+	"1048166215689977886": (MISSING, "https://storage.alpha.bot/62fa40ac71dd326490292d8fb1b3bc70.png")
+}
+
 
 class AlertsServer(object):
 	accountProperties = DatabaseConnector(mode="account")
@@ -251,62 +257,66 @@ class AlertsServer(object):
 			startTimestamp = time()
 			conn = TCPConnector(limit=5)
 			async with ClientSession(connector=conn) as session:
-				url = "https://discord.com/api/webhooks/1048157795830206514/MTBlZOqeYNTqeo0ocb9MoIBPzeIZzVmXPVJhrobbqzYkSx8luk6bOMF-kGBmcxyVuVLu"
-				webhook = Webhook.from_url(url, session=session)
+				guilds = database.collection("details/feeds/halts").stream()
+				async for guild in guilds:
+					guildId = guild.id
+					feed = guild.to_dict()
 
-				for symbol in new:
-					guildId = 414498292655980583
+					for symbol in new:
+						webhook = Webhook.from_url(feed["url"], session=session)
 
-					guild = await self.guildProperties.get(guildId, {})
-					accountId = guild.get("settings", {}).get("setup", {}).get("connection")
-					user = await self.accountProperties.get(accountId, {})
+						guild = await self.guildProperties.get(guildId, {})
+						accountId = guild.get("settings", {}).get("setup", {}).get("connection")
+						user = await self.accountProperties.get(accountId, {})
 
-					if not guild: await post.reference.delete()
-					if guild.get("stale", {}).get("count", 0) > 0: continue
+						if not guild: await post.reference.delete()
+						if guild.get("stale", {}).get("count", 0) > 0: continue
 
-					request = CommandRequest(
-						accountId=accountId,
-						# authorId=data["authorId"],
-						# channelId=data["channelId"],
-						guildId=guildId,
-						accountProperties=user,
-						guildProperties=guild
-					)
+						request = CommandRequest(
+							accountId=accountId,
+							authorId=feed["authorId"],
+							channelId=feed["channelId"],
+							guildId=guildId,
+							accountProperties=user,
+							guildProperties=guild
+						)
 
-					platforms = request.get_platform_order_for("c")
-					responseMessage, task = await process_chart_arguments([], platforms, tickerId=f"NASDAQ:{symbol}")
+						platforms = request.get_platform_order_for("c")
+						responseMessage, task = await process_chart_arguments([], platforms, tickerId=f"NASDAQ:{symbol}")
 
-					if responseMessage is not None:
-						print(responseMessage)
-						continue
+						if responseMessage is not None:
+							print(responseMessage)
+							continue
 
-					currentTask = task.get(task.get("currentPlatform"))
-					timeframes = task.pop("timeframes")
-					for p, t in timeframes.items(): task[p]["currentTimeframe"] = t[0]
-
-					payload, responseMessage = await process_task(task, "chart")
-
-					files, embeds = [], []
-					if payload is not None:
-						task["currentPlatform"] = payload.get("platform")
 						currentTask = task.get(task.get("currentPlatform"))
-						files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
+						timeframes = task.pop("timeframes")
+						for p, t in timeframes.items(): task[p]["currentTimeframe"] = t[0]
 
-					embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["orange"])
-					code = HALT_MAP[halts[symbol]['code']]
-					embed.add_field(name="Reason", value=f"{code[0]} (code: `{halts[symbol]['code']}`)", inline=False)
-					if len(code) == 2:
-						embed.add_field(name="Explanation", value=code[1], inline=False)
-					if halts[symbol]["resumption"] is not None:
-						embed.add_field(name="Resumption", value=datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S'), inline=False)
-					embeds.append(embed)
+						payload, responseMessage = await process_task(task, "chart")
 
-					await webhook.send(
-						files=files,
-						embeds=embeds,
-						username="Alpha",
-						avatar_url="https://storage.alpha.bot/Icon.png"
-					)
+						files, embeds = [], []
+						if payload is not None:
+							task["currentPlatform"] = payload.get("platform")
+							currentTask = task.get(task.get("currentPlatform"))
+							files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
+
+						embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["orange"])
+						code = HALT_MAP[halts[symbol]['code']]
+						embed.add_field(name="Reason", value=f"{code[0]} (code: `{halts[symbol]['code']}`)", inline=False)
+						if len(code) == 2:
+							embed.add_field(name="Explanation", value=code[1], inline=False)
+						if halts[symbol]["resumption"] is not None:
+							embed.add_field(name="Resumption", value=f"{datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S UTC')} (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
+						embeds.append(embed)
+
+						name, avatar = NAMES.get(data.get("botId", "401328409499664394"), (MISSING, MISSING))
+
+						await webhook.send(
+							files=files,
+							embeds=embeds,
+							username=name,
+							avatar_url=avatar
+						)
 		except (KeyboardInterrupt, SystemExit): pass
 		except Exception:
 			print(format_exc())
