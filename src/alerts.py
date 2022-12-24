@@ -172,7 +172,7 @@ class AlertsServer(object):
 						"channel": alert.get("channel"),
 						"backupUser": authorId,
 						"backupChannel": alert.get("backupChannel"),
-						"destination": alert.get("destination", 401328409499664394)
+						"destination": alert.get("destination", "401328409499664394")
 					})
 					await reference.delete()
 
@@ -194,7 +194,7 @@ class AlertsServer(object):
 								"channel": alert.get("channel"),
 								"backupUser": authorId,
 								"backupChannel": alert.get("backupChannel"),
-								"destination": alert.get("destination", 401328409499664394)
+								"destination": alert.get("destination", "401328409499664394")
 							})
 							await reference.delete()
 
