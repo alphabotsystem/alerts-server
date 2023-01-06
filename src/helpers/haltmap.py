@@ -1,10 +1,10 @@
 HALT_MAP = {
 	"T1": [
-		"Halt - News Pending",
+		"News Pending",
 		"Trading is halted pending the release of material news."
 	],
 	"T2": [
-		"Halt - News Released",
+		"News Released",
 		"The news has begun the dissemination process through a Regulation FD compliant method(s)."
 	],
 	"T5": [
@@ -12,31 +12,31 @@ HALT_MAP = {
 		"Trading has been paused by NASDAQ due to a 10% or more price move in the security in a five-minute period."	
 	],
 	"T6": [
-		"Halt - Extraordinary Market Activity",
+		"Extraordinary Market Activity",
 		"Trading is halted when extraordinary market activity in the security is occurring; NASDAQ determines that such extraordinary market activity is likely to have a material effect on the market for that security; and 1) NASDAQ believes that such, extraordinary market activity is caused by the misuse or malfunction of an electronic quotation, communication, reporting or execution system operated by or linked to NASDAQ; or 2) after consultation with either a national securities exchange trading the security on an unlisted trading privileges basis or a non-NASDAQ FINRA facility trading the security, NASDAQ believes such extraordinary market activity is caused by the misuse or malfunction of an electronic quotation, communication, reporting or execution system operated by or linked to such national securities exchange or non- NASDAQ FINRA facility."
 	],
 	"T8": [
-		"Halt - Exchange-Traded-Fund (ETF)",
+		"Exchange-Traded-Fund (ETF)",
 		"Trading is halted in an ETF due to the consideration of, among other factors: 1) the extent to which trading has ceased in the underlying security(s); 2) whether trading has been halted or suspended in the primary market(s) for any combination of underlying securities accounting for 20% or more of the applicable current index group value; 3) the presence of other unusual conditions or circumstances deemed to be detrimental to the maintenance of a fair and orderly market."
 	],
 	"T12": [
-		"Halt - Additional Information Requested by NASDAQ",
+		"Additional Information Requested by NASDAQ",
 		"Trading is halted pending receipt of additional information requested by NASDAQ."
 	],
 	"H4": [
-		"Halt - Non-compliance"
+		"Non-compliance"
 		"Trading is halted due to the company's non-compliance with NASDAQ listing requirements."
 	],
 	"H9": [
-		"Halt - Not Current"
+		"Not Current"
 		"Trading is halted because the company is not current in its required filings."
 	],
 	"H10": [
-		"Halt - SEC Trading Suspension"
+		"SEC Trading Suspension"
 		"The Securities and Exchange Commission has suspended trading in this stock."
 	],
 	"H11": [
-		"Halt - Regulatory Concern",
+		"Regulatory Concern",
 		"Trading is halted in conjunction with another exchange or market for regulatory reasons."
 	],
 	"O1": [
