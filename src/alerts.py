@@ -125,8 +125,8 @@ class AlertsServer(object):
 						alerts.append((authorId, accountId, alert))
 
 				tasks = []
-				for key, [request, indices] in requestMap.items():
-					payload = await request
+				for key, [response, indices] in requestMap.items():
+					payload = await response
 					for i in indices:
 						(authorId, accountId, alert) = alerts[i]
 						tasks.append(create_task(self.check_price_alert(payload, authorId, accountId, alert.reference, alert.to_dict())))
@@ -172,7 +172,7 @@ class AlertsServer(object):
 						"channel": alert.get("channel"),
 						"backupUser": authorId,
 						"backupChannel": alert.get("backupChannel"),
-						"destination": alert.get("destination", "401328409499664394")
+						"botId": alert.get("botId", "401328409499664394")
 					})
 					await reference.delete()
 
@@ -194,7 +194,7 @@ class AlertsServer(object):
 								"channel": alert.get("channel"),
 								"backupUser": authorId,
 								"backupChannel": alert.get("backupChannel"),
-								"destination": alert.get("destination", "401328409499664394")
+								"botId": alert.get("botId", "401328409499664394")
 							})
 							await reference.delete()
 
