@@ -45,7 +45,7 @@ class AlertsServer(object):
 	# -------------------------
 	# Startup
 	# -------------------------
-	
+
 	def __init__(self):
 		self.isServiceAvailable = True
 		signal(SIGINT, self.exit_gracefully)
@@ -269,7 +269,6 @@ class AlertsServer(object):
 						accountId = guild.get("settings", {}).get("setup", {}).get("connection")
 						user = await self.accountProperties.get(accountId, {})
 
-						if not guild: await post.reference.delete()
 						if guild.get("stale", {}).get("count", 0) > 0: continue
 
 						request = CommandRequest(
