@@ -221,6 +221,13 @@ class AlertsServer(object):
 			if resumption is None or resumption > time():
 				symbol = halt["ndaq_issuesymbol"].upper()
 				if symbol in parsed:
+					print({
+						"timestamp" : self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"]),
+						"code": halt["ndaq_reasoncode"],
+						"resumption": resumption,
+						"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
+					})
+					print(parsed[symbol])
 					print("Duplicate halt:", symbol)
 					if environ["PRODUCTION"]: self.logging.report(f"Duplicate halt: {symbol}")
 					continue
