@@ -220,23 +220,14 @@ class AlertsServer(object):
 			resumption = None if halt["ndaq_resumptiondate"] == "" or halt["ndaq_resumptiontradetime"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
 			if resumption is None or resumption > time():
 				symbol = halt["ndaq_issuesymbol"].upper()
-				if symbol in parsed:
-					print({
-						"timestamp" : self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"]),
+				timestamp = self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"])
+				if symbol not in parsed or parsed[symbol]["timestamp"] > timestamp:
+					parsed[symbol] = {
+						"timestamp" : timestamp,
 						"code": halt["ndaq_reasoncode"],
 						"resumption": resumption,
 						"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
-					})
-					print(parsed[symbol])
-					print("Duplicate halt:", symbol)
-					if environ["PRODUCTION"]: self.logging.report(f"Duplicate halt: {symbol}")
-					continue
-				parsed[symbol] = {
-					"timestamp" : self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"]),
-					"code": halt["ndaq_reasoncode"],
-					"resumption": resumption,
-					"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
-				}
+					}
 		return parsed
 
 	async def process_halt_alerts(self):
