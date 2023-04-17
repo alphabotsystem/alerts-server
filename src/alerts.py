@@ -270,8 +270,7 @@ class AlertsServer(object):
 
 						request = CommandRequest(
 							accountId=accountId,
-							authorId=feed["authorId"],
-							channelId=feed["channelId"],
+							authorId=user["oauth"]["discord"]["userId"],
 							guildId=guildId,
 							accountProperties=user,
 							guildProperties=guild
