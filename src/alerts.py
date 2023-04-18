@@ -270,7 +270,7 @@ class AlertsServer(object):
 
 						request = CommandRequest(
 							accountId=accountId,
-							authorId=user["oauth"]["discord"]["userId"],
+							authorId=user.get("oauth", {}).get("discord", {}).get("userId"),
 							guildId=guildId,
 							accountProperties=user,
 							guildProperties=guild
