@@ -306,12 +306,13 @@ class AlertsServer(object):
 
 						name, avatar = NAMES.get(data.get("botId", "401328409499664394"), (MISSING, MISSING))
 
-						await webhook.send(
-							files=files,
-							embeds=embeds,
-							username=name,
-							avatar_url=avatar
-						)
+						if environ["PRODUCTION"]:
+							await webhook.send(
+								files=files,
+								embeds=embeds,
+								username=name,
+								avatar_url=avatar
+							)
 		except (KeyboardInterrupt, SystemExit): pass
 		except Exception:
 			print(format_exc())
