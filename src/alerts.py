@@ -262,18 +262,18 @@ class AlertsServer(object):
 					for symbol in new:
 						webhook = Webhook.from_url(feed["url"], session=session)
 
-						guild = await self.guildProperties.get(guildId, {})
-						accountId = guild.get("settings", {}).get("setup", {}).get("connection")
-						user = await self.accountProperties.get(accountId, {})
+						guildProperties = await self.guildProperties.get(guildId, {})
+						accountId = guildProperties.get("settings", {}).get("setup", {}).get("connection")
+						userProperties = await self.accountProperties.get(accountId, {})
 
-						if guild.get("stale", {}).get("count", 0) > 0: continue
+						if guildProperties.get("stale", {}).get("count", 0) > 0: continue
 
 						request = CommandRequest(
 							accountId=accountId,
-							authorId=user.get("oauth", {}).get("discord", {}).get("userId"),
+							authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
 							guildId=guildId,
-							accountProperties=user,
-							guildProperties=guild
+							accountProperties=userProperties,
+							guildProperties=guildProperties
 						)
 
 						platforms = request.get_platform_order_for("c")
@@ -307,12 +307,16 @@ class AlertsServer(object):
 						name, avatar = NAMES.get(data.get("botId", "401328409499664394"), (MISSING, MISSING))
 
 						if environ["PRODUCTION"]:
-							await webhook.send(
-								files=files,
-								embeds=embeds,
-								username=name,
-								avatar_url=avatar
-							)
+							try:
+								await webhook.send(
+									files=files,
+									embeds=embeds,
+									username=name,
+									avatar_url=avatar
+								)
+							except NotFound:
+								await guild.reference.delete()
+
 		except (KeyboardInterrupt, SystemExit): pass
 		except Exception:
 			print(format_exc())
