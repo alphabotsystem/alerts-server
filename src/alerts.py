@@ -301,7 +301,7 @@ class AlertsServer(object):
 						if len(code) == 2:
 							embed.add_field(name="Explanation", value=code[1], inline=False)
 						if halts[symbol]["resumption"] is not None:
-							embed.add_field(name="Resumption", value=f"{datetime.strftime(datetime.fromtimestamp(halts[symbol]['resumption']), '%Y/%m/%d/ %H:%M:%S UTC')} (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
+							embed.add_field(name="Resumption", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
 						embeds.append(embed)
 
 						name, avatar = NAMES.get(data.get("botId", "401328409499664394"), (MISSING, MISSING))
