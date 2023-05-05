@@ -218,16 +218,21 @@ class AlertsServer(object):
 		parsed = {}
 		for halt in data:
 			resumption = None if halt["ndaq_resumptiondate"] == "" or halt["ndaq_resumptiontradetime"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
-			if resumption is None or resumption > time():
-				symbol = halt["ndaq_issuesymbol"].upper()
-				timestamp = self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"])
-				if symbol not in parsed or parsed[symbol]["timestamp"] > timestamp:
-					parsed[symbol] = {
-						"timestamp" : timestamp,
-						"code": halt["ndaq_reasoncode"],
-						"resumption": resumption,
-						"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
-					}
+
+			if resumption is not None and resumption <= time():
+				continue
+
+			symbol = halt["ndaq_issuesymbol"].upper()
+			timestamp = self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"])
+			if symbol in parsed and parsed[symbol]["timestamp"] <= timestamp:
+				continue
+
+			parsed[symbol] = {
+				"timestamp" : timestamp,
+				"code": halt["ndaq_reasoncode"],
+				"resumption": resumption,
+				"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
+			}
 		return parsed
 
 	async def process_halt_alerts(self):
@@ -260,6 +265,10 @@ class AlertsServer(object):
 					feed = guild.to_dict()
 
 					for symbol in new:
+						config = HALT_MAP.get(halts[symbol]['code'])
+						if config is None:
+							continue
+
 						webhook = Webhook.from_url(feed["url"], session=session)
 
 						guildProperties = await self.guildProperties.get(guildId, {})
@@ -287,7 +296,9 @@ class AlertsServer(object):
 						timeframes = task.pop("timeframes")
 						for p, t in timeframes.items(): task[p]["currentTimeframe"] = t[0]
 
-						payload, responseMessage = await process_task(task, "chart")
+						payload, responseMessage = None, None
+						if config.get("chart"):
+							payload, responseMessage = await process_task(task, "chart")
 
 						files, embeds = [], []
 						if payload is not None:
@@ -296,12 +307,11 @@ class AlertsServer(object):
 							files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
 
 						embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["orange"])
-						code = HALT_MAP[halts[symbol]['code']]
-						embed.add_field(name="Reason", value=f"{code[0]} (code: `{halts[symbol]['code']}`)", inline=False)
-						if len(code) == 2:
-							embed.add_field(name="Explanation", value=code[1], inline=False)
+						embed.add_field(name="Reason", value=f"{config.get('title')} (code: `{halts[symbol]['code']}`)", inline=False)
+						if config.get("description") is not None:
+							embed.add_field(name="Description", value=config.get("description"), inline=False)
 						if halts[symbol]["resumption"] is not None:
-							embed.add_field(name="Resumption", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
+							embed.add_field(name="Resumption time", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
 						embeds.append(embed)
 
 						name, avatar = NAMES.get(data.get("botId", "401328409499664394"), (MISSING, MISSING))
