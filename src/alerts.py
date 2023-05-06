@@ -98,7 +98,7 @@ class AlertsServer(object):
 
 	async def process_price_alerts(self):
 		startTimestamp = time()
-		conn = TCPConnector(limit=2)
+		conn = TCPConnector(limit=10)
 		async with ClientSession(connector=conn) as session:
 			try:
 				requestMap = {}
