@@ -322,7 +322,8 @@ class AlertsServer(object):
 									files=files,
 									embeds=embeds,
 									username=name,
-									avatar_url=avatar
+									avatar_url=avatar,
+									wait=True
 								)
 							except NotFound:
 								await guild.reference.delete()
