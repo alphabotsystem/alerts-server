@@ -320,7 +320,7 @@ class AlertsServer(object):
 								files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
 
 						pastEvents = message.embeds[0].fields[0].value if message is not None else ""
-						if halts[symbol]['code'] == self.haltDataCache["halts"][symbol]["code"]:
+						if symbol in self.haltDataCache["halts"] and halts[symbol]['code'] == self.haltDataCache["halts"][symbol]["code"]:
 							timeline = pastEvents
 						else:
 							timeline = pastEvents + f"\n{config.get('title')} (code: `{halts[symbol]['code']}`) <t:{int(halts[symbol]['timestamp'])}:R>"
