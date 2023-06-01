@@ -298,7 +298,7 @@ class AlertsServer(object):
 						)
 
 						platforms = request.get_platform_order_for("c")
-						arguments = [] if config.get("chart") is None else ["5m" if config.get("chart") == "low" else "1d"]
+						arguments = [] if config.get("chart") is None else ["15m" if config.get("chart") == "low" else "1d"]
 						responseMessage, task = await process_chart_arguments(arguments, platforms, tickerId=f"NASDAQ:{symbol}")
 
 						if responseMessage is not None:
