@@ -9,7 +9,7 @@ HALT_MAP = {
 		"description": "The dissemination process of the news has commenced using compliant methods."
 	},
 	"T3": {
-		"title": "Resumption times",
+		"title": "Resumption time announced",
 		"description": "The news has been fully disseminated or NASDAQ has resolved any issues causing market extraordinary activity. Trading resumption time has been announced.",
 		"chart": "high"
 	},
@@ -102,23 +102,28 @@ HALT_MAP = {
 	},
 	"MWC0": {
 		"title": "Market Wide Circuit Breaker Halt - Carry over from previous day",
-		"description": "Trading has halted due to a market-wide circuit breaker triggered on the previous day, which has not been resolved."
+		"description": "Trading has halted due to a market-wide circuit breaker triggered on the previous day, which has not been resolved.",
+		"halt": False
 	},
 	"MWC1": {
 		"title": "Market Wide Circuit Breaker Halt - Level 1",
-		"description": "A temporary halt in trading for all stocks when the market experiences a 7% drop from the previous day's closing price."
+		"description": "A temporary halt in trading for all stocks when the market experiences a 7% drop from the previous day's closing price.",
+		"halt": False
 	},
 	"MWC2": {
 		"title": "Market Wide Circuit Breaker Halt - Level 2",
-		"description": "A temporary halt in trading for all stocks when the market experiences a 13% drop from the previous day's closing price."
+		"description": "A temporary halt in trading for all stocks when the market experiences a 13% drop from the previous day's closing price.",
+		"halt": False
 	},
 	"MWC3": {
 		"title": "Market Wide Circuit Breaker Halt - Level 3",
-		"description": "Trading has halted for all stocks for the rest of the day when the market experiences a 20% drop from the previous day's closing price."
+		"description": "Trading has halted for all stocks for the rest of the day when the market experiences a 20% drop from the previous day's closing price.",
+		"halt": False
 	},
 	"MWCQ": {
 		"title": "Market Wide Circuit Breaker Resumption",
-		"description": "Trading has resumed after a market-wide circuit breaker halt."
+		"description": "Trading has resumed after a market-wide circuit breaker halt.",
+		"halt": False
 	},
 	"R4": {
 		"title": "Qualifications Issues Reviewed/Resolved - Quotations/Trading to Resume",
