@@ -392,7 +392,6 @@ class AlertsServer(object):
 
 						embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been resumed.", color=constants.colors["green"])
 						embed.add_field(name="Timeline", value=timeline.strip(), inline=False)
-						embed.add_field(name="Description", value="Trading has resumed.", inline=False)
 
 					if environ["PRODUCTION"] or guildId == "414498292655980583":
 						try:
@@ -424,4 +423,5 @@ class AlertsServer(object):
 
 if __name__ == "__main__":
 	alertsServer = AlertsServer()
+	print("[Startup]: Alerts server is online")
 	run(alertsServer.run())
