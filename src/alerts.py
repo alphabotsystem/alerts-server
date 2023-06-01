@@ -31,8 +31,8 @@ database = FirestoreClient()
 EST = ZoneInfo("America/New_York")
 
 NAMES = {
-	"401328409499664394": ("Alpha", "https://storage.alpha.bot/Icon.png"),
-	"487714342301859854": ("Alpha (Beta)", MISSING)
+	"401328409499664394": ("Alpha.bot", "https://storage.alpha.bot/Icon.png"),
+	"487714342301859854": ("Alpha.bot (Beta)", MISSING)
 }
 
 
