@@ -22,7 +22,7 @@ spec:
         resources:
           requests:
             memory: "102Mi"
-            cpu: "17m"
+            cpu: "12m"
         env:
           - name: PRODUCTION
             value: "1"

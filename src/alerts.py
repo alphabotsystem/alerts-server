@@ -332,7 +332,7 @@ class AlertsServer(object):
 						if halts[symbol]["resumption"] is not None:
 							embed.add_field(name="Resumption time", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
 
-					if environ["PRODUCTION"] or guildId == "414498292655980583":
+					if environ["PRODUCTION"]:
 						try:
 							if message is not None:
 								message = await message.edit(
@@ -393,7 +393,7 @@ class AlertsServer(object):
 						embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been resumed.", color=constants.colors["green"])
 						embed.add_field(name="Timeline", value=timeline.strip(), inline=False)
 
-					if environ["PRODUCTION"] or guildId == "414498292655980583":
+					if environ["PRODUCTION"]:
 						try:
 							if message is not None:
 								await message.edit(
