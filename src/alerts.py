@@ -30,9 +30,11 @@ from helpers.haltmap import HALT_MAP
 database = FirestoreClient()
 EST = ZoneInfo("America/New_York")
 
+ALPHABOT_ID = "401328409499664394"
+ALPHABOT_BETA_ID = "487714342301859854"
 NAMES = {
-	"401328409499664394": ("Alpha.bot", "https://storage.alpha.bot/Icon.png"),
-	"487714342301859854": ("Alpha.bot (Beta)", MISSING)
+	ALPHABOT_ID: ("Alpha.bot", "https://storage.alpha.bot/Icon.png"),
+	ALPHABOT_BETA_ID: ("Alpha.bot (Beta)", MISSING)
 }
 
 
@@ -266,7 +268,8 @@ class AlertsServer(object):
 					self.haltMessageCache[guildId] = {}
 
 				feed = guild.to_dict()
-				name, avatar = NAMES.get(feed.get("botId", "401328409499664394"), (MISSING, MISSING))
+				botId = feed.get("botId", "401328409499664394")
+				name, avatar = NAMES.get(botId, (MISSING, MISSING))
 				webhook = Webhook.from_url(feed["url"], session=session)
 
 				for symbol in new:
@@ -371,7 +374,8 @@ class AlertsServer(object):
 							authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
 							guildId=guildId,
 							accountProperties=userProperties,
-							guildProperties=guildProperties
+							guildProperties=guildProperties,
+							origin="default" if botId in [ALPHABOT_ID, ALPHABOT_BETA_ID] else botId
 						)
 
 						files = []
