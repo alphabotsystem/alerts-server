@@ -315,7 +315,7 @@ class AlertsServer(object):
 						if message is None:
 							payload, responseMessage = None, None
 							if config.get("chart"):
-								payload, responseMessage = await process_task(task, "chart")
+								payload, responseMessage = await process_task(task, "chart", origin=request.origi)
 
 							if payload is not None:
 								task["currentPlatform"] = payload.get("platform")
