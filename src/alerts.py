@@ -32,7 +32,7 @@ EST = ZoneInfo("America/New_York")
 
 ALPHABOT_ID = "401328409499664394"
 ALPHABOT_BETA_ID = "487714342301859854"
-NAMES = {
+BOT_CONFIG = {
 	ALPHABOT_ID: ("Alpha.bot", "https://storage.alpha.bot/Icon.png"),
 	ALPHABOT_BETA_ID: ("Alpha.bot (Beta)", MISSING)
 }
@@ -269,7 +269,8 @@ class AlertsServer(object):
 
 				feed = guild.to_dict()
 				botId = feed.get("botId", "401328409499664394")
-				name, avatar = NAMES.get(botId, (MISSING, MISSING))
+				origin = "default" if botId in [ALPHABOT_ID, ALPHABOT_BETA_ID] else botId
+				name, avatar = BOT_CONFIG.get(botId, (MISSING, MISSING))
 				webhook = Webhook.from_url(feed["url"], session=session)
 
 				for symbol in new:
@@ -297,7 +298,8 @@ class AlertsServer(object):
 							authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
 							guildId=guildId,
 							accountProperties=userProperties,
-							guildProperties=guildProperties
+							guildProperties=guildProperties,
+							origin=origin
 						)
 
 						platforms = request.get_platform_order_for("c")
