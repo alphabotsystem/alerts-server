@@ -377,7 +377,7 @@ class AlertsServer(object):
 							guildId=guildId,
 							accountProperties=userProperties,
 							guildProperties=guildProperties,
-							origin="default" if botId in [ALPHABOT_ID, ALPHABOT_BETA_ID] else botId
+							origin=origin
 						)
 
 						files = []
