@@ -33,8 +33,8 @@ EST = ZoneInfo("America/New_York")
 ALPHABOT_ID = "401328409499664394"
 ALPHABOT_BETA_ID = "487714342301859854"
 BOT_CONFIG = {
-	ALPHABOT_ID: ("Alpha.bot", "https://storage.alpha.bot/Icon.png"),
-	ALPHABOT_BETA_ID: ("Alpha.bot (Beta)", MISSING)
+	ALPHABOT_ID: ("Alpha", "https://storage.alpha.bot/Icon.png"),
+	ALPHABOT_BETA_ID: ("Alpha (Beta)", MISSING)
 }
 
 
