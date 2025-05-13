@@ -263,157 +263,162 @@ class AlertsServer(object):
 
 			guilds = database.collection("details/feeds/halts").stream()
 			async for guild in guilds:
-				guildId = guild.id
-				if guildId not in self.haltMessageCache:
-					self.haltMessageCache[guildId] = {}
+				try:
+					guildId = guild.id
+					if guildId not in self.haltMessageCache:
+						self.haltMessageCache[guildId] = {}
 
-				feed = guild.to_dict()
-				botId = feed.get("botId", "401328409499664394")
-				origin = "default" if botId in [ALPHABOT_ID, ALPHABOT_BETA_ID] else botId
-				name, avatar = BOT_CONFIG.get(botId, (MISSING, MISSING))
-				webhook = Webhook.from_url(feed["url"], session=session)
+					feed = guild.to_dict()
+					botId = feed.get("botId", "401328409499664394")
+					origin = "default" if botId in [ALPHABOT_ID, ALPHABOT_BETA_ID] else botId
+					name, avatar = BOT_CONFIG.get(botId, (MISSING, MISSING))
+					webhook = Webhook.from_url(feed["url"], session=session)
 
-				for symbol in new:
-					message = self.haltMessageCache[guildId].pop(symbol, None)
-					config = HALT_MAP.get(halts[symbol]['code'])
-					if config is None: continue
-
-					files = []
-					if not config.get('halt', True):
-						embed = Embed(title=f"{config.get('title')} (code: `{halts[symbol]['code']}`)", color=constants.colors["red"])
-						if config.get("description") is not None:
-							embed.add_field(name="Description", value=config.get("description"), inline=False)
-						if halts[symbol]["resumption"] is not None:
-							embed.add_field(name="Resumption time", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
-
-					else:
-						guildProperties = await self.guildProperties.get(guildId, {})
-						accountId = guildProperties.get("settings", {}).get("setup", {}).get("connection")
-						userProperties = await self.accountProperties.get(accountId, {})
-
-						if guildProperties.get("stale", {}).get("count", 0) > 0: continue
-
-						request = CommandRequest(
-							accountId=accountId,
-							authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
-							guildId=guildId,
-							accountProperties=userProperties,
-							guildProperties=guildProperties,
-							origin=origin
-						)
-
-						platforms = request.get_platform_order_for("c")
-						arguments = [] if config.get("chart") is None else ["15m" if config.get("chart") == "low" else "1d"]
-						responseMessage, task = await process_chart_arguments(arguments, platforms, tickerId=f"NASDAQ:{symbol}")
-
-						if responseMessage is not None:
-							print(responseMessage)
-							continue
-
-						currentTask = task.get(task.get("currentPlatform"))
-						timeframes = task.pop("timeframes")
-						for p, t in timeframes.items(): task[p]["currentTimeframe"] = t[0]
-
-						if message is None:
-							payload, responseMessage = None, None
-							if config.get("chart"):
-								payload, responseMessage = await process_task(task, "chart", origin=request.origin, priority=False)
-
-							if payload is not None:
-								task["currentPlatform"] = payload.get("platform")
-								currentTask = task.get(task.get("currentPlatform"))
-								files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
-
-						pastEvents = message.embeds[0].fields[0].value if message is not None else ""
-						if symbol in self.haltDataCache["halts"] and halts[symbol]['code'] == self.haltDataCache["halts"][symbol]["code"]:
-							timeline = pastEvents
-						else:
-							timeline = pastEvents + f"\n{config.get('title')} (code: `{halts[symbol]['code']}`) <t:{int(halts[symbol]['timestamp'])}:R>"
-
-						embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["red"])
-						embed.add_field(name="Timeline", value=timeline.strip(), inline=False)
-						if config.get("description") is not None:
-							embed.add_field(name="Description", value=config.get("description"), inline=False)
-						if halts[symbol]["resumption"] is not None:
-							embed.add_field(name="Resumption time", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
-
-					if environ["PRODUCTION"]:
-						try:
-							if message is not None:
-								message = await message.edit(
-									embed=embed
-								)
-							else:
-								message = await webhook.send(
-									files=files,
-									embed=embed,
-									username=name,
-									avatar_url=avatar,
-									wait=True
-								)
-							self.haltMessageCache[guildId][symbol] = message
-						except NotFound:
-							await guild.reference.delete()
-
-				for symbol in old:
-					message = self.haltMessageCache[guildId].pop(symbol, None)
-					config = HALT_MAP.get(self.haltDataCache["halts"][symbol]['code'])
-					if config is None: continue
-					if self.haltDataCache["halts"][symbol]['code'].startswith("IPO"): continue
-
-					if not config.get('halt', True):
-						embed = Embed(title=f"Market wide halt has been lifted.", color=constants.colors["green"])
-
-					else:
-						guildProperties = await self.guildProperties.get(guildId, {})
-						accountId = guildProperties.get("settings", {}).get("setup", {}).get("connection")
-						userProperties = await self.accountProperties.get(accountId, {})
-
-						if guildProperties.get("stale", {}).get("count", 0) > 0: continue
-
-						request = CommandRequest(
-							accountId=accountId,
-							authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
-							guildId=guildId,
-							accountProperties=userProperties,
-							guildProperties=guildProperties,
-							origin=origin
-						)
+					for symbol in new:
+						message = self.haltMessageCache[guildId].pop(symbol, None)
+						config = HALT_MAP.get(halts[symbol]['code'])
+						if config is None: continue
 
 						files = []
-						platforms = request.get_platform_order_for("c")
-						responseMessage, task = await process_chart_arguments([], platforms, tickerId=f"NASDAQ:{symbol}")
+						if not config.get('halt', True):
+							embed = Embed(title=f"{config.get('title')} (code: `{halts[symbol]['code']}`)", color=constants.colors["red"])
+							if config.get("description") is not None:
+								embed.add_field(name="Description", value=config.get("description"), inline=False)
+							if halts[symbol]["resumption"] is not None:
+								embed.add_field(name="Resumption time", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
 
-						if responseMessage is not None:
-							print(responseMessage)
-							continue
-
-						currentTask = task.get(task.get("currentPlatform"))
-
-						pastEvents = message.embeds[0].fields[0].value if message is not None else ""
-						if self.haltDataCache['halts'][symbol]['resumption'] is None:
-							timeline = pastEvents + f"\nTrading resumed <t:{int(time())}:R>"
 						else:
-							timeline = pastEvents + f"\nTrading resumed <t:{int(self.haltDataCache['halts'][symbol]['resumption'])}:R>"
+							guildProperties = await self.guildProperties.get(guildId, {})
+							accountId = guildProperties.get("settings", {}).get("setup", {}).get("connection")
+							userProperties = await self.accountProperties.get(accountId, {})
 
-						embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been resumed.", color=constants.colors["green"])
-						embed.add_field(name="Timeline", value=timeline.strip(), inline=False)
+							if guildProperties.get("stale", {}).get("count", 0) > 0: continue
 
-					if environ["PRODUCTION"]:
-						try:
-							if message is not None:
-								await message.edit(
-									embed=embed
-								)
+							request = CommandRequest(
+								accountId=accountId,
+								authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
+								guildId=guildId,
+								accountProperties=userProperties,
+								guildProperties=guildProperties,
+								origin=origin
+							)
+
+							platforms = request.get_platform_order_for("c")
+							arguments = [] if config.get("chart") is None else ["15m" if config.get("chart") == "low" else "1d"]
+							responseMessage, task = await process_chart_arguments(arguments, platforms, tickerId=f"NASDAQ:{symbol}")
+
+							if responseMessage is not None:
+								print(responseMessage)
+								continue
+
+							currentTask = task.get(task.get("currentPlatform"))
+							timeframes = task.pop("timeframes")
+							for p, t in timeframes.items(): task[p]["currentTimeframe"] = t[0]
+
+							if message is None:
+								payload, responseMessage = None, None
+								if config.get("chart"):
+									payload, responseMessage = await process_task(task, "chart", origin=request.origin, priority=False)
+
+								if payload is not None:
+									task["currentPlatform"] = payload.get("platform")
+									currentTask = task.get(task.get("currentPlatform"))
+									files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
+
+							pastEvents = message.embeds[0].fields[0].value if message is not None else ""
+							if symbol in self.haltDataCache["halts"] and halts[symbol]['code'] == self.haltDataCache["halts"][symbol]["code"]:
+								timeline = pastEvents
 							else:
-								await webhook.send(
-									embed=embed,
-									username=name,
-									avatar_url=avatar,
-									wait=True
-								)
-						except NotFound:
-							await guild.reference.delete()
+								timeline = pastEvents + f"\n{config.get('title')} (code: `{halts[symbol]['code']}`) <t:{int(halts[symbol]['timestamp'])}:R>"
+
+							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["red"])
+							embed.add_field(name="Timeline", value=timeline.strip(), inline=False)
+							if config.get("description") is not None:
+								embed.add_field(name="Description", value=config.get("description"), inline=False)
+							if halts[symbol]["resumption"] is not None:
+								embed.add_field(name="Resumption time", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
+
+						if environ["PRODUCTION"]:
+							try:
+								if message is not None:
+									message = await message.edit(
+										embed=embed
+									)
+								else:
+									message = await webhook.send(
+										files=files,
+										embed=embed,
+										username=name,
+										avatar_url=avatar,
+										wait=True
+									)
+								self.haltMessageCache[guildId][symbol] = message
+							except NotFound:
+								await guild.reference.delete()
+
+					for symbol in old:
+						message = self.haltMessageCache[guildId].pop(symbol, None)
+						config = HALT_MAP.get(self.haltDataCache["halts"][symbol]['code'])
+						if config is None: continue
+						if self.haltDataCache["halts"][symbol]['code'].startswith("IPO"): continue
+
+						if not config.get('halt', True):
+							embed = Embed(title=f"Market wide halt has been lifted.", color=constants.colors["green"])
+
+						else:
+							guildProperties = await self.guildProperties.get(guildId, {})
+							accountId = guildProperties.get("settings", {}).get("setup", {}).get("connection")
+							userProperties = await self.accountProperties.get(accountId, {})
+
+							if guildProperties.get("stale", {}).get("count", 0) > 0: continue
+
+							request = CommandRequest(
+								accountId=accountId,
+								authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
+								guildId=guildId,
+								accountProperties=userProperties,
+								guildProperties=guildProperties,
+								origin=origin
+							)
+
+							files = []
+							platforms = request.get_platform_order_for("c")
+							responseMessage, task = await process_chart_arguments([], platforms, tickerId=f"NASDAQ:{symbol}")
+
+							if responseMessage is not None:
+								print(responseMessage)
+								continue
+
+							currentTask = task.get(task.get("currentPlatform"))
+
+							pastEvents = message.embeds[0].fields[0].value if message is not None else ""
+							if self.haltDataCache['halts'][symbol]['resumption'] is None:
+								timeline = pastEvents + f"\nTrading resumed <t:{int(time())}:R>"
+							else:
+								timeline = pastEvents + f"\nTrading resumed <t:{int(self.haltDataCache['halts'][symbol]['resumption'])}:R>"
+
+							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been resumed.", color=constants.colors["green"])
+							embed.add_field(name="Timeline", value=timeline.strip(), inline=False)
+
+						if environ["PRODUCTION"]:
+							try:
+								if message is not None:
+									await message.edit(
+										embed=embed
+									)
+								else:
+									await webhook.send(
+										embed=embed,
+										username=name,
+										avatar_url=avatar,
+										wait=True
+									)
+							except NotFound:
+								await guild.reference.delete()
+				except (KeyboardInterrupt, SystemExit): pass
+				except:
+					print(format_exc())
+					if environ["PRODUCTION"]: self.logging.report_exception(user=guildId)
 
 			self.haltDataCache = {
 				"timestamp": time(),
