@@ -217,7 +217,7 @@ class AlertsServer(object):
 	# -------------------------
 
 	def parse_halt_date(self, date):
-		return datetime.strptime(date, "%m/%d/%Y %H:%M:%S").replace(tzinfo=EST).timestamp()
+		return datetime.strptime(date, "%m/%d/%Y %H:%M:%S.%f").replace(tzinfo=EST).timestamp()
 
 	def parse_halts(self, data):
 		parsed = {}
