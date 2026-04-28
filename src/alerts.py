@@ -220,6 +220,17 @@ class AlertsServer(object):
 		fmt = "%m/%d/%Y %H:%M:%S.%f" if "." in date else "%m/%d/%Y %H:%M:%S"
 		return datetime.strptime(date, fmt).replace(tzinfo=EST).timestamp()
 
+	def truncate_timeline(self, timeline, limit=1024):
+		timeline = timeline.strip()
+		if len(timeline) <= limit:
+			return timeline
+		lines = timeline.split("\n")
+		if lines and lines[0] == "…":
+			lines.pop(0)
+		while lines and len("…\n" + "\n".join(lines)) > limit:
+			lines.pop(0)
+		return "…\n" + "\n".join(lines)
+
 	def parse_halts(self, data):
 		parsed = {}
 		for halt in data:
@@ -333,7 +344,7 @@ class AlertsServer(object):
 								timeline = pastEvents + f"\n{config.get('title')} (code: `{halts[symbol]['code']}`) <t:{int(halts[symbol]['timestamp'])}:R>"
 
 							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["red"])
-							embed.add_field(name="Timeline", value=timeline.strip(), inline=False)
+							embed.add_field(name="Timeline", value=self.truncate_timeline(timeline), inline=False)
 							if config.get("description") is not None:
 								embed.add_field(name="Description", value=config.get("description"), inline=False)
 							if halts[symbol]["resumption"] is not None:
@@ -399,7 +410,7 @@ class AlertsServer(object):
 								timeline = pastEvents + f"\nTrading resumed <t:{int(self.haltDataCache['halts'][symbol]['resumption'])}:R>"
 
 							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been resumed.", color=constants.colors["green"])
-							embed.add_field(name="Timeline", value=timeline.strip(), inline=False)
+							embed.add_field(name="Timeline", value=self.truncate_timeline(timeline), inline=False)
 
 						if environ["PRODUCTION"]:
 							try:
