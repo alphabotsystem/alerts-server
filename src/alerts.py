@@ -284,6 +284,7 @@ class AlertsServer(object):
 					feed = guild.to_dict()
 
 					if feed.get("transitionedAt") is not None:
+						await guild.reference.delete()
 						continue
 
 					if feed.get("botId", ALPHABOT_ID) in [ALPHABOT_ID, ALPHABOT_BETA_ID]:
