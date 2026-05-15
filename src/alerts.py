@@ -12,8 +12,9 @@ from orjson import dumps, OPT_SORT_KEYS
 from uuid import uuid4
 from traceback import format_exc
 
-from discord import Webhook, Embed, File
+from discord import Webhook, Embed, File, ButtonStyle
 from discord.errors import NotFound
+from discord.ui import View, Button
 from discord.utils import MISSING
 from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
@@ -281,6 +282,42 @@ class AlertsServer(object):
 						self.haltMessageCache[guildId] = {}
 
 					feed = guild.to_dict()
+
+					if feed.get("transitionedAt") is not None:
+						continue
+
+					if feed.get("botId", ALPHABOT_ID) in [ALPHABOT_ID, ALPHABOT_BETA_ID]:
+						transitionBotId = feed.get("botId", ALPHABOT_ID)
+						transitionWebhook = Webhook.from_url(feed["url"], session=session)
+						transitionName, transitionAvatar = BOT_CONFIG.get(transitionBotId, (MISSING, MISSING))
+						embed = Embed(
+							title="Alpha.bot v2 is here",
+							description=(
+								"This server is currently receiving NASDAQ halt alerts from Alpha.bot v1. "
+								"Alpha.bot v2 is now available and v1 alerts to this channel are being discontinued. "
+								"To keep receiving halt alerts, an admin needs to install Alpha.bot v2 and re-enable "
+								"the halt feed using the /configure command."
+							),
+							color=constants.colors["amber"]
+						)
+						view = View()
+						view.add_item(Button(style=ButtonStyle.link, label="Install Alpha.bot v2", url=constants.TRY_V2_URL))
+
+						print(f"[v2 migration] notifying {guildId} via {feed.get('url', '<missing>')[:60]}...")
+						if environ["PRODUCTION"]:
+							try:
+								await transitionWebhook.send(
+									embed=embed,
+									view=view,
+									username=transitionName,
+									avatar_url=transitionAvatar,
+									wait=True
+								)
+								await guild.reference.set({"transitionedAt": time()}, merge=True)
+							except NotFound:
+								await guild.reference.delete()
+						continue
+
 					botId = feed.get("botId", "401328409499664394")
 					origin = "default" if botId in [ALPHABOT_ID, ALPHABOT_BETA_ID] else botId
 					name, avatar = BOT_CONFIG.get(botId, (MISSING, MISSING))
