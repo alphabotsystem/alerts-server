@@ -2,46 +2,26 @@ from os import environ
 environ["PRODUCTION"] = environ["PRODUCTION"] if "PRODUCTION" in environ and environ["PRODUCTION"] else ""
 
 from signal import signal, SIGINT, SIGTERM
-from time import time, mktime
-from random import randint
+from time import time
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 from aiohttp import TCPConnector, ClientSession
-from asyncio import sleep, wait, run, create_task
+from asyncio import wait, run, create_task, sleep
 from orjson import dumps, OPT_SORT_KEYS
 from uuid import uuid4
 from traceback import format_exc
 
-from discord import Webhook, Embed, File, ButtonStyle
-from discord.errors import NotFound
-from discord.ui import View, Button
-from discord.utils import MISSING
 from google.cloud.firestore import AsyncClient as FirestoreClient
 from google.cloud.error_reporting import Client as ErrorReportingClient
-from feedparser import parse
 
-from helpers import constants
-from Processor import process_chart_arguments, process_task
 from DatabaseConnector import DatabaseConnector
-from CommandRequest import CommandRequest
 from helpers.utils import seconds_until_cycle, get_accepted_timeframes
-from helpers.haltmap import HALT_MAP
 
 
 database = FirestoreClient()
-EST = ZoneInfo("America/New_York")
-
-ALPHABOT_ID = "401328409499664394"
-ALPHABOT_BETA_ID = "487714342301859854"
-BOT_CONFIG = {
-	ALPHABOT_ID: ("Alpha", "https://storage.alpha.bot/Icon.png"),
-	ALPHABOT_BETA_ID: ("Alpha (Beta)", MISSING)
-}
 
 
 class AlertsServer(object):
 	accountProperties = DatabaseConnector(mode="account")
-	guildProperties = DatabaseConnector(mode="guild")
 	registeredAccounts = {}
 
 
@@ -57,9 +37,6 @@ class AlertsServer(object):
 		self.logging = ErrorReportingClient(service="alerts")
 
 		self.url = "http://candle-server:6900/candle/" if environ['PRODUCTION'] else "http://candle-server:6900/candle/"
-
-		self.haltDataCache = {}
-		self.haltMessageCache = {}
 
 	def exit_gracefully(self, signum, frame):
 		print("[Startup]: Alerts Server handler is exiting")
@@ -83,7 +60,6 @@ class AlertsServer(object):
 						await self.update_accounts()
 						await wait([
 							create_task(self.process_price_alerts(session)),
-							create_task(self.process_halt_alerts(session)),
 						])
 
 				except (KeyboardInterrupt, SystemExit): return
@@ -211,275 +187,6 @@ class AlertsServer(object):
 		except:
 			print(format_exc())
 			if environ["PRODUCTION"]: self.logging.report_exception(user=f"{accountId}, {authorId}")
-
-
-	# -------------------------
-	# Halt Alerts
-	# -------------------------
-
-	def parse_halt_date(self, date):
-		fmt = "%m/%d/%Y %H:%M:%S.%f" if "." in date else "%m/%d/%Y %H:%M:%S"
-		return datetime.strptime(date, fmt).replace(tzinfo=EST).timestamp()
-
-	def truncate_timeline(self, timeline, limit=1024):
-		timeline = timeline.strip()
-		if len(timeline) <= limit:
-			return timeline
-		lines = timeline.split("\n")
-		if lines and lines[0] == "…":
-			lines.pop(0)
-		while lines and len("…\n" + "\n".join(lines)) > limit:
-			lines.pop(0)
-		return "…\n" + "\n".join(lines)
-
-	def parse_halts(self, data):
-		parsed = {}
-		for halt in data:
-			symbol = halt["ndaq_issuesymbol"].upper()
-			timestamp = self.parse_halt_date(halt["ndaq_haltdate"] + " " + halt["ndaq_halttime"])
-			resumption = None if halt["ndaq_resumptiondate"] == "" or halt["ndaq_resumptiontradetime"] == "" else self.parse_halt_date(halt["ndaq_resumptiondate"] + " " + halt["ndaq_resumptiontradetime"])
-
-			if resumption is None and halt["ndaq_reasoncode"] == "LUDP":
-				resumption = timestamp + 5 * 60
-
-			if resumption is not None and resumption <= time():
-				continue
-			if symbol in parsed and parsed[symbol]["timestamp"] <= timestamp:
-				continue
-
-			parsed[symbol] = {
-				"timestamp" : timestamp,
-				"code": halt["ndaq_reasoncode"],
-				"resumption": resumption,
-				"hash": str(hash(f"{halt['ndaq_issuesymbol']}{halt['ndaq_haltdate']}{halt['ndaq_halttime']}{halt['ndaq_reasoncode']}{resumption}"))
-			}
-		return parsed
-
-	async def process_halt_alerts(self, session):
-		try:
-			startTimestamp = time()
-
-			data = parse("http://www.nasdaqtrader.com/rss.aspx?feed=tradehalts")
-			halts = self.parse_halts(data.entries)
-
-			if self.haltDataCache.get("timestamp") is not None:
-				new = set(halts.keys()).difference(set(self.haltDataCache["halts"].keys()))
-				old = set(self.haltDataCache["halts"].keys()).difference(set(halts.keys()))
-			else:
-				old = set()
-				new = set()
-
-			for symbol, halt in self.haltDataCache.get("halts", {}).items():
-				if symbol not in halts or halts[symbol]["hash"] == halt["hash"]:
-					continue
-				new.add(symbol)
-
-			guilds = database.collection("details/feeds/halts").stream()
-			async for guild in guilds:
-				try:
-					guildId = guild.id
-					if guildId not in self.haltMessageCache:
-						self.haltMessageCache[guildId] = {}
-
-					feed = guild.to_dict()
-
-					if feed.get("transitionedAt") is not None:
-						await guild.reference.delete()
-						continue
-
-					if feed.get("botId", ALPHABOT_ID) in [ALPHABOT_ID, ALPHABOT_BETA_ID]:
-						transitionBotId = feed.get("botId", ALPHABOT_ID)
-						transitionWebhook = Webhook.from_url(feed["url"], session=session)
-						transitionName, transitionAvatar = BOT_CONFIG.get(transitionBotId, (MISSING, MISSING))
-						embed = Embed(
-							title="Alpha.bot v2 is here",
-							description=(
-								"This server is currently receiving NASDAQ halt alerts from Alpha.bot v1. "
-								"Alpha.bot v2 is now available and v1 alerts to this channel are being discontinued. "
-								"To keep receiving halt alerts, an admin needs to install Alpha.bot v2 and re-enable "
-								"the halt feed using the /configure command."
-							),
-							color=constants.colors["amber"]
-						)
-						view = View()
-						view.add_item(Button(style=ButtonStyle.link, label="Install Alpha.bot v2", url=constants.TRY_V2_URL))
-
-						print(f"[v2 migration] notifying {guildId} via {feed.get('url', '<missing>')[:60]}...")
-						if environ["PRODUCTION"]:
-							try:
-								await transitionWebhook.send(
-									embed=embed,
-									view=view,
-									username=transitionName,
-									avatar_url=transitionAvatar,
-									wait=True
-								)
-								await guild.reference.set({"transitionedAt": time()}, merge=True)
-							except NotFound:
-								await guild.reference.delete()
-						continue
-
-					botId = feed.get("botId", "401328409499664394")
-					origin = "default" if botId in [ALPHABOT_ID, ALPHABOT_BETA_ID] else botId
-					name, avatar = BOT_CONFIG.get(botId, (MISSING, MISSING))
-					webhook = Webhook.from_url(feed["url"], session=session)
-
-					for symbol in new:
-						message = self.haltMessageCache[guildId].pop(symbol, None)
-						config = HALT_MAP.get(halts[symbol]['code'])
-						if config is None: continue
-
-						files = []
-						if not config.get('halt', True):
-							embed = Embed(title=f"{config.get('title')} (code: `{halts[symbol]['code']}`)", color=constants.colors["red"])
-							if config.get("description") is not None:
-								embed.add_field(name="Description", value=config.get("description"), inline=False)
-							if halts[symbol]["resumption"] is not None:
-								embed.add_field(name="Resumption time", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
-
-						else:
-							guildProperties = await self.guildProperties.get(guildId, {})
-							accountId = guildProperties.get("settings", {}).get("setup", {}).get("connection")
-							userProperties = await self.accountProperties.get(accountId, {})
-
-							if guildProperties.get("stale", {}).get("count", 0) > 0: continue
-
-							request = CommandRequest(
-								accountId=accountId,
-								authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
-								guildId=guildId,
-								accountProperties=userProperties,
-								guildProperties=guildProperties,
-								origin=origin
-							)
-
-							platforms = request.get_platform_order_for("c")
-							arguments = [] if config.get("chart") is None else ["15m" if config.get("chart") == "low" else "1d"]
-							responseMessage, task = await process_chart_arguments(arguments, platforms, tickerId=f"NASDAQ:{symbol}")
-
-							if responseMessage is not None:
-								print(responseMessage)
-								continue
-
-							currentTask = task.get(task.get("currentPlatform"))
-							timeframes = task.pop("timeframes")
-							for p, t in timeframes.items(): task[p]["currentTimeframe"] = t[0]
-
-							if message is None:
-								payload, responseMessage = None, None
-								if config.get("chart"):
-									payload, responseMessage = await process_task(task, "chart", origin=request.origin, priority=False)
-
-								if payload is not None:
-									task["currentPlatform"] = payload.get("platform")
-									currentTask = task.get(task.get("currentPlatform"))
-									files.append(File(payload.get("data"), filename="{:.0f}-{}-{}.png".format(time() * 1000, request.authorId, randint(1000, 9999))))
-
-							pastEvents = message.embeds[0].fields[0].value if message is not None else ""
-							if symbol in self.haltDataCache["halts"] and halts[symbol]['code'] == self.haltDataCache["halts"][symbol]["code"]:
-								timeline = pastEvents
-							else:
-								timeline = pastEvents + f"\n{config.get('title')} (code: `{halts[symbol]['code']}`) <t:{int(halts[symbol]['timestamp'])}:R>"
-
-							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been halted.", color=constants.colors["red"])
-							embed.add_field(name="Timeline", value=self.truncate_timeline(timeline), inline=False)
-							if config.get("description") is not None:
-								embed.add_field(name="Description", value=config.get("description"), inline=False)
-							if halts[symbol]["resumption"] is not None:
-								embed.add_field(name="Resumption time", value=f"<t:{int(halts[symbol]['resumption'])}> (<t:{int(halts[symbol]['resumption'])}:R>)", inline=False)
-
-						if environ["PRODUCTION"]:
-							try:
-								if message is not None:
-									message = await message.edit(
-										embed=embed
-									)
-								else:
-									message = await webhook.send(
-										files=files,
-										embed=embed,
-										username=name,
-										avatar_url=avatar,
-										wait=True
-									)
-								self.haltMessageCache[guildId][symbol] = message
-							except NotFound:
-								await guild.reference.delete()
-
-					for symbol in old:
-						message = self.haltMessageCache[guildId].pop(symbol, None)
-						config = HALT_MAP.get(self.haltDataCache["halts"][symbol]['code'])
-						if config is None: continue
-						if self.haltDataCache["halts"][symbol]['code'].startswith("IPO"): continue
-
-						if not config.get('halt', True):
-							embed = Embed(title=f"Market wide halt has been lifted.", color=constants.colors["green"])
-
-						else:
-							guildProperties = await self.guildProperties.get(guildId, {})
-							accountId = guildProperties.get("settings", {}).get("setup", {}).get("connection")
-							userProperties = await self.accountProperties.get(accountId, {})
-
-							if guildProperties.get("stale", {}).get("count", 0) > 0: continue
-
-							request = CommandRequest(
-								accountId=accountId,
-								authorId=userProperties.get("oauth", {}).get("discord", {}).get("userId"),
-								guildId=guildId,
-								accountProperties=userProperties,
-								guildProperties=guildProperties,
-								origin=origin
-							)
-
-							files = []
-							platforms = request.get_platform_order_for("c")
-							responseMessage, task = await process_chart_arguments([], platforms, tickerId=f"NASDAQ:{symbol}")
-
-							if responseMessage is not None:
-								print(responseMessage)
-								continue
-
-							currentTask = task.get(task.get("currentPlatform"))
-
-							pastEvents = message.embeds[0].fields[0].value if message is not None else ""
-							if self.haltDataCache['halts'][symbol]['resumption'] is None:
-								timeline = pastEvents + f"\nTrading resumed <t:{int(time())}:R>"
-							else:
-								timeline = pastEvents + f"\nTrading resumed <t:{int(self.haltDataCache['halts'][symbol]['resumption'])}:R>"
-
-							embed = Embed(title=f"Trading for {currentTask.get('ticker').get('name')} (`{currentTask.get('ticker').get('id')}`) has been resumed.", color=constants.colors["green"])
-							embed.add_field(name="Timeline", value=self.truncate_timeline(timeline), inline=False)
-
-						if environ["PRODUCTION"]:
-							try:
-								if message is not None:
-									await message.edit(
-										embed=embed
-									)
-								else:
-									await webhook.send(
-										embed=embed,
-										username=name,
-										avatar_url=avatar,
-										wait=True
-									)
-							except NotFound:
-								await guild.reference.delete()
-				except (KeyboardInterrupt, SystemExit): pass
-				except:
-					print(format_exc())
-					if environ["PRODUCTION"]: self.logging.report_exception(user=guildId)
-
-			self.haltDataCache = {
-				"timestamp": time(),
-				"halts": halts,
-			}
-			await database.document("details/halts").set(self.haltDataCache)
-
-		except (KeyboardInterrupt, SystemExit): pass
-		except:
-			print(format_exc())
-			if environ["PRODUCTION"]: self.logging.report_exception()
 
 
 if __name__ == "__main__":
